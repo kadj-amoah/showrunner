@@ -1,0 +1,106 @@
+name: Bug report
+description: Something Showrunner did that it shouldn't have, or didn't do that it should have
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. The more concrete you can be, the faster this gets fixed. The triage cadence is weekly (Monday) — see [MAINTENANCE.md](https://github.com/kadj-amoah/showrunner/blob/main/MAINTENANCE.md).
+
+  - type: input
+    id: version
+    attributes:
+      label: Showrunner version
+      description: Output of `showrunner --version`
+      placeholder: "1.1.0"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: install-source
+    attributes:
+      label: How did you install?
+      options:
+        - npm install -g @kadj-amoah/showrunner (npmjs)
+        - npm install -g @kadj-amoah/showrunner (GitHub Packages)
+        - npm install -g github:kadj-amoah/showrunner#v1.1.0
+        - Built from source (git clone + npm link)
+        - Other (describe below)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - Linux (native)
+        - Linux (WSL on Windows)
+        - macOS (Apple Silicon)
+        - macOS (Intel)
+        - Windows (PowerShell)
+        - Windows (Git Bash)
+        - Other (describe below)
+    validations:
+      required: true
+
+  - type: input
+    id: node
+    attributes:
+      label: Node version
+      description: Output of `node --version`
+      placeholder: "v20.10.0"
+    validations:
+      required: true
+
+  - type: textarea
+    id: doctor
+    attributes:
+      label: doctor output
+      description: Paste the output of `showrunner doctor -c <your-demo.yaml>` — even if everything passes, this captures the environment
+      render: text
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What you ran, what you expected to happen, what actually happened. Include the full command + the last ~50 lines of log output if relevant.
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Minimum reproduction
+      description: |
+        If you can, share the smallest `demo.yaml` + steps that trigger the bug. A GitHub repo URL is fine. If reproduction depends on a private dev server, describe the page enough that we can find a similar public one.
+    validations:
+      required: false
+
+  - type: dropdown
+    id: providers
+    attributes:
+      label: Providers in use (if relevant)
+      multiple: true
+      options:
+        - LLM - anthropic
+        - LLM - openai
+        - LLM - agent_bridge (claude CLI)
+        - LLM - agent_bridge (other)
+        - LLM - custom
+        - TTS - elevenlabs
+        - TTS - openai
+        - TTS - custom
+        - N/A
+    validations:
+      required: false
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else?
+      description: Screenshots, related issues, workarounds you tried.
+    validations:
+      required: false

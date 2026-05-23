@@ -1,0 +1,62 @@
+name: Feature request
+description: Something you'd like Showrunner to do that it doesn't
+labels: ["feature"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Before filing, please skim [ROADMAP.md](https://github.com/kadj-amoah/showrunner/blob/main/ROADMAP.md) — the next 3–4 versions are already scoped and your idea might already be planned.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem are you trying to solve?
+      description: Describe the situation you're in and what gets in your way. (Not "I want feature X" but "when I'm doing Y, Z is hard because…")
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: How would you like Showrunner to behave? A specific CLI flag, a config field, a new command, a different default — all welcome. Be concrete.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you considered
+      description: What workarounds did you try? Why didn't they work?
+    validations:
+      required: false
+
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Where do you think this fits?
+      options:
+        - "Bug-grade — wrong default that should be fixed"
+        - "Patch (v1.1.x) — small additive change"
+        - "Minor (v1.2.0+) — new capability, no breaking changes"
+        - "Major (v2.0.0) — needs to break existing configs"
+        - "Not sure — I'd like to discuss"
+    validations:
+      required: true
+
+  - type: textarea
+    id: provider-context
+    attributes:
+      label: Provider context (if relevant)
+      description: If your request is provider-specific (e.g. a new LLM/TTS provider, a custom-module API change), name the provider and link to its docs.
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: contributing
+    attributes:
+      label: Are you up for contributing this?
+      options:
+        - label: "I'd like to attempt a PR for this myself"
+        - label: "I'd review/test a PR by someone else"
+        - label: "I'm filing the request and hoping someone else picks it up"
