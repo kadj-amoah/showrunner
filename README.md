@@ -19,7 +19,38 @@ Showrunner is built to deploy on Linux but develops fine on WSL2 or macOS.
 
 ## Install
 
-Until the GitHub Packages release lands, install from source:
+Published to both npmjs.org (zero-friction install) and GitHub Packages (mirrors the GitHub Releases timeline). Pick whichever matches your workflow:
+
+### npm (recommended — no auth needed)
+
+```bash
+npm install -g @kadj-amoah/showrunner
+npx playwright install chromium
+showrunner --version    # → 1.1.0
+```
+
+### GitHub Packages
+
+Requires a one-time `~/.npmrc` setup since GitHub Packages requires auth even for public packages:
+
+```bash
+# Generate a Personal Access Token at github.com/settings/tokens
+# Scope needed: read:packages
+echo "@kadj-amoah:registry=https://npm.pkg.github.com" >> ~/.npmrc
+echo "//npm.pkg.github.com/:_authToken=YOUR_TOKEN_HERE" >> ~/.npmrc
+
+npm install -g @kadj-amoah/showrunner
+npx playwright install chromium
+```
+
+### Directly from a git tag (no registry at all)
+
+```bash
+npm install -g github:kadj-amoah/showrunner#v1.1.0
+npx playwright install chromium
+```
+
+### From source
 
 ```bash
 git clone https://github.com/kadj-amoah/showrunner.git
@@ -30,7 +61,7 @@ npm link                    # makes `showrunner` available globally
 npx playwright install chromium
 ```
 
-Verify with `showrunner --help`.
+Verify any of the above with `showrunner --help`.
 
 ## First demo in five commands
 
