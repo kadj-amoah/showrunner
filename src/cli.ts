@@ -22,7 +22,7 @@ const program = new Command();
 program
   .name('showrunner')
   .description('Automated product demo recording & production tool')
-  .version('0.1.0')
+  .version('1.1.0')
   .option('--json', 'emit structured JSON logs to stdout')
   .option('--log-level <level>', 'log level (debug|info|warn|error)')
   .hook('preAction', (thisCmd) => {
