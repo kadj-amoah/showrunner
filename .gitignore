@@ -1,0 +1,25 @@
+node_modules/
+dist/
+*.tsbuildinfo
+
+.env
+.env.local
+.env.*.local
+
+segments/
+output/
+.showrunner-lock
+.showrunner-cache/
+
+playwright-report/
+test-results/
+
+*.log
+.DS_Store
+.vscode/
+.idea/
+
+# Local dev artifacts — not part of the shipped product
+scripts/probe-*.mjs
+scratch/
+

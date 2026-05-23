@@ -1,0 +1,549 @@
+import { mkdir, writeFile, access } from 'node:fs/promises';
+import { dirname, isAbsolute, join, resolve } from 'node:path';
+import { logger } from '../util/logger.js';
+import {
+  RESOLUTION_PRESETS,
+  formatResolution,
+  resolvePreset,
+  type Resolution,
+  type ResolutionPreset,
+} from '../util/resolutionPresets.js';
+
+export type LLMProviderChoice = 'anthropic' | 'openai' | 'agent_bridge';
+export type TTSProviderChoice = 'elevenlabs' | 'openai' | 'custom';
+
+const LLM_CHOICES: LLMProviderChoice[] = ['anthropic', 'openai', 'agent_bridge'];
+const TTS_CHOICES: TTSProviderChoice[] = ['elevenlabs', 'openai', 'custom'];
+
+interface InitOpts {
+  name: string;
+  url: string;
+  dir: string;
+  force: boolean;
+  llmProvider?: string;
+  ttsProvider?: string;
+  resolution?: string;
+}
+
+interface ResolvedInitOpts extends Omit<InitOpts, 'resolution'> {
+  llm: LLMProviderChoice;
+  tts: TTSProviderChoice;
+  resolutionPreset: ResolutionPreset;
+  resolution: Resolution;
+}
+
+const PLACEHOLDER_FILES = [
+  'auth/.gitkeep',
+  'assets/fonts/.gitkeep',
+  'scripts/.gitkeep',
+  'segments/audio/.gitkeep',
+  'segments/video/.gitkeep',
+  'output/.gitkeep',
+];
+
+export async function initCommand(opts: InitOpts): Promise<void> {
+  const resolutionPreset = validateChoice<ResolutionPreset>(
+    opts.resolution,
+    [...RESOLUTION_PRESETS],
+    'standard',
+    '--resolution',
+  );
+  const resolved: ResolvedInitOpts = {
+    ...opts,
+    llm: validateChoice<LLMProviderChoice>(opts.llmProvider, LLM_CHOICES, 'anthropic', '--llm-provider'),
+    tts: validateChoice<TTSProviderChoice>(opts.ttsProvider, TTS_CHOICES, 'elevenlabs', '--tts-provider'),
+    resolutionPreset,
+    resolution: resolvePreset(resolutionPreset),
+  };
+
+  const parent = isAbsolute(opts.dir) ? opts.dir : resolve(process.cwd(), opts.dir);
+  const projectRoot = join(parent, opts.name);
+
+  if (!opts.force && (await pathExists(projectRoot))) {
+    logger.error(
+      `Directory already exists: ${projectRoot}. Pass --force to overwrite, or choose a different --name/--dir.`,
+    );
+    process.exit(1);
+  }
+
+  await mkdir(projectRoot, { recursive: true });
+
+  for (const rel of PLACEHOLDER_FILES) {
+    const dest = join(projectRoot, rel);
+    await mkdir(dirname(dest), { recursive: true });
+    await writeFile(dest, '', 'utf8');
+  }
+
+  await writeFile(join(projectRoot, 'demo.yaml'), demoYamlTemplate(resolved), 'utf8');
+  await writeFile(join(projectRoot, '.env.example'), envExampleTemplate(resolved), 'utf8');
+  await writeFile(join(projectRoot, '.gitignore'), gitignoreTemplate(), 'utf8');
+  await mkdir(join(projectRoot, 'docs'), { recursive: true });
+  await writeFile(join(projectRoot, 'docs/PRD.md'), prdStubTemplate(resolved), 'utf8');
+  await writeFile(join(projectRoot, 'scripts/manifest.json'), starterManifest(resolved), 'utf8');
+  await writeFile(join(projectRoot, 'scripts/seed_demo_data.sh'), seedScript(), {
+    mode: 0o755,
+  });
+  await writeFile(join(projectRoot, 'scripts/reset_demo_data.sh'), resetScript(), {
+    mode: 0o755,
+  });
+  await writeFile(join(projectRoot, 'scripts/teardown.sh'), teardownScript(), {
+    mode: 0o755,
+  });
+  await writeFile(join(projectRoot, 'README.md'), readmeTemplate(resolved), 'utf8');
+
+  logger.info(`Showrunner project scaffolded at ${projectRoot} (llm=${resolved.llm}, tts=${resolved.tts})`);
+  logger.info(`Next steps:
+  cd ${opts.name}
+  cp .env.example .env                    # fill in API keys
+  $EDITOR docs/PRD.md                     # replace the stub with your product brief
+  showrunner doctor --config demo.yaml    # preflight checks
+  showrunner understand --config demo.yaml   # build product_model.json
+  showrunner run --config demo.yaml       # the full pipeline`);
+}
+
+function validateChoice<T extends string>(
+  value: string | undefined,
+  allowed: T[],
+  defaultValue: T,
+  flagName: string,
+): T {
+  if (!value) return defaultValue;
+  if (!allowed.includes(value as T)) {
+    throw new Error(
+      `${flagName} must be one of: ${allowed.join(', ')} (got "${value}")`,
+    );
+  }
+  return value as T;
+}
+
+async function pathExists(p: string): Promise<boolean> {
+  try {
+    await access(p);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function demoYamlTemplate(opts: ResolvedInitOpts): string {
+  return `# Showrunner demo config — edit me.
+# See https://github.com/your-org/showrunner for the full schema reference.
+
+project:
+  name: ${opts.name}
+  # product_model: ./product_model.json   # uncomment to skip comprehension
+
+comprehension:
+  mode: documents
+  sources:
+    - type: prd
+      path: ./docs/PRD.md
+    # - type: readme
+    #   path: ./README.md
+    # - type: codebase
+    #   path: ./src
+    #   include: ["**/*.ts", "**/*.tsx"]
+
+script:
+  style: matter-of-fact
+  duration_target_seconds: 90
+  highlight_features: []
+  # Set to true if you want the pipeline to halt after the script stage so you
+  # can hand-edit scripts/vo_script.txt before voice synthesis runs. Resume
+  # with: showrunner approve-vo -c demo.yaml
+  vo_review_gate: false
+
+recording:
+  target_url: ${opts.url}
+  # Resolution preset: ${opts.resolutionPreset} (${formatResolution(opts.resolution)}).
+  # Rescaffold with --resolution low|standard|high|extreme, or change here and
+  # keep output.resolution below in sync. "showrunner doctor" shows the live
+  # ffmpeg thread cap so you can tell whether bigger is safe on your box.
+  viewport:
+    width: ${opts.resolution.width}
+    height: ${opts.resolution.height}
+  browser: chromium
+  headless: false
+  output_dir: ./segments/video
+  state:
+    seed_script: ./scripts/seed_demo_data.sh
+    reset_script: ./scripts/reset_demo_data.sh
+    teardown_script: ./scripts/teardown.sh
+  # auth:
+  #   type: session
+  #   cookies_file: ./auth/session.json
+  #   local_storage_file: ./auth/storage.json
+
+${llmYamlBlock(opts.llm)}
+${voiceoverYamlBlock(opts.tts)}
+output:
+  format: mp4
+  # Matches recording.viewport above (preset: ${opts.resolutionPreset}). Keep
+  # these two values in sync to avoid upscaling artifacts during mux.
+  resolution: ${formatResolution(opts.resolution)}
+  fps: 30
+  branding:
+    title_card:
+      enabled: true
+      text: "${opts.name}"
+      duration_seconds: 2
+      font_size: 48
+      text_color: "#FFFFFF"
+      background_color: "#0F172A"
+      logo_position: top_center
+    outro_card:
+      enabled: true
+      text: "thanks for watching"
+      duration_seconds: 2
+  # background_music:
+  #   path: ./assets/bg_music.mp3
+  #   volume_db: -22
+  output_path: ./output/demo_final.mp4
+`;
+}
+
+function llmYamlBlock(choice: LLMProviderChoice): string {
+  switch (choice) {
+    case 'anthropic':
+      return `llm:
+  default:
+    provider: anthropic
+    model: claude-opus-4-7
+    api_key_env: ANTHROPIC_API_KEY
+  # overrides:
+  #   script:
+  #     provider: agent_bridge
+  #     bridge:
+  #       mode: spawn
+  #       command: claude
+  #       args: ["-p", "--output-format", "json"]
+`;
+    case 'openai':
+      return `llm:
+  default:
+    provider: openai
+    model: gpt-4o
+    api_key_env: OPENAI_API_KEY
+`;
+    case 'agent_bridge':
+      return `llm:
+  default:
+    provider: agent_bridge
+    bridge:
+      mode: spawn
+      # Headless agent CLI. Default is \`claude -p --output-format json\`.
+      # Override per your installation.
+      command: claude
+      args: ["-p", "--output-format", "json"]
+      # timeout_ms: 120000
+`;
+  }
+}
+
+function voiceoverYamlBlock(choice: TTSProviderChoice): string {
+  const tail = `  output_dir: ./segments/audio
+  alignment_dir: ./segments/alignment
+  duration_drift_threshold_pct: 15
+  drift_strategy: adjust_timing
+  tail_padding_ms: 500
+  post_process:
+    debreath: true
+  pause_placement:
+    strategy: action_boundaries
+    min_silence_ms: 250
+    snap_window_ms: 1200
+
+`;
+  switch (choice) {
+    case 'elevenlabs':
+      return `voiceover:
+  provider:
+    name: elevenlabs
+    voice_id: "21m00Tcm4TlvDq8ikWAM"   # ElevenLabs default — replace with your chosen voice
+    model: eleven_multilingual_v2
+    api_key_env: ELEVENLABS_API_KEY
+    endpoint: with_timestamps
+    stability: 0.55
+    similarity_boost: 0.75
+    style: 0.0
+    use_speaker_boost: true
+    speed: 1.0
+  # required: only ElevenLabs returns character alignment. Use best_effort with
+  # other providers — captions degrade to whole-segment cues and at_word
+  # actions fall back to at-time.
+  alignment_strategy: required
+${tail}`;
+    case 'openai':
+      return `voiceover:
+  provider:
+    name: openai
+    voice: alloy
+    model: tts-1-hd
+    api_key_env: OPENAI_API_KEY
+    # base_url: https://api.openai.com/v1   # override for self-hosted gateways
+  # OpenAI TTS does not return character alignment — must be best_effort.
+  alignment_strategy: best_effort
+${tail}`;
+    case 'custom':
+      return `voiceover:
+  provider:
+    name: custom
+    # Dynamic-import path resolved relative to this demo.yaml. The module's
+    # default export must conform to the TTSProvider interface
+    # (see src/providers/tts/types.ts in the Showrunner repo).
+    module_path: ./tts_provider.mjs
+    # options:
+    #   any_keys_you_want: true
+  alignment_strategy: best_effort
+${tail}`;
+  }
+}
+
+function envExampleTemplate(opts: ResolvedInitOpts): string {
+  const vars = new Set<string>();
+  if (opts.llm === 'anthropic') vars.add('ANTHROPIC_API_KEY');
+  if (opts.llm === 'openai') vars.add('OPENAI_API_KEY');
+  if (opts.tts === 'elevenlabs') vars.add('ELEVENLABS_API_KEY');
+  if (opts.tts === 'openai') vars.add('OPENAI_API_KEY');
+
+  const lines = [`# Showrunner secrets — copy to .env and fill in.`];
+  for (const v of vars) lines.push(`${v}=`);
+  if (vars.size === 0) {
+    lines.push(`# (agent_bridge LLM + custom TTS — no provider env vars required)`);
+  }
+  lines.push('');
+  lines.push(`# Optional: used by form / setup_script auth strategies.`);
+  lines.push(`DEMO_EMAIL=`);
+  lines.push(`DEMO_PASSWORD=`);
+  lines.push('');
+  lines.push(`# Optional log level: debug | info | warn | error`);
+  lines.push(`SHOWRUNNER_LOG_LEVEL=info`);
+  lines.push('');
+  lines.push(`# Optional: cap libx264 threads when free memory is tight (e.g. WSL boxes).`);
+  lines.push(`# SHOWRUNNER_FFMPEG_THREADS=2`);
+  lines.push('');
+  return lines.join('\n');
+}
+
+function gitignoreTemplate(): string {
+  return `.env
+.env.local
+.env.*.local
+
+# Recording artifacts (large binaries)
+segments/
+output/
+
+# Captured auth state may contain sensitive tokens — uncomment if so
+# auth/*.json
+
+.showrunner-lock
+.showrunner-cache/
+
+playwright-report/
+test-results/
+
+*.log
+.DS_Store
+`;
+}
+
+function seedScript(): string {
+  return `#!/usr/bin/env bash
+# seed_demo_data.sh — runs once before the recording session begins.
+# Use this to create demo users, seed records, and establish baseline state.
+#
+# Environment variables provided by Showrunner:
+#   SHOWRUNNER_RUN_ID    — unique identifier for this pipeline run
+#
+# Exit non-zero to halt the pipeline before recording starts.
+
+set -euo pipefail
+
+echo "[seed] noop — replace this script with your demo data seeding"
+`;
+}
+
+function resetScript(): string {
+  return `#!/usr/bin/env bash
+# reset_demo_data.sh — runs before each segment re-take.
+# Use this to undo mutations that previous takes may have introduced.
+#
+# Environment variables provided by Showrunner:
+#   SHOWRUNNER_RUN_ID
+#   SHOWRUNNER_SEGMENT_ID
+#
+# Not run on the initial full pipeline pass.
+
+set -euo pipefail
+
+echo "[reset] noop — replace this script with your per-segment reset logic"
+`;
+}
+
+function teardownScript(): string {
+  return `#!/usr/bin/env bash
+# teardown.sh — runs after the full session completes (success or failure).
+#
+# Environment variables provided by Showrunner:
+#   SHOWRUNNER_RUN_ID
+#   SHOWRUNNER_STATUS    — "success" or "failure"
+#
+# Use this to clean up seeded data, close background processes, etc.
+
+set -euo pipefail
+
+echo "[teardown] noop (status=${'${SHOWRUNNER_STATUS:-unknown}'})"
+`;
+}
+
+function starterManifest(opts: ResolvedInitOpts): string {
+  const manifest = {
+    total_duration_seconds: 8,
+    generated_from: 'init-scaffold',
+    segments: [
+      {
+        id: 'intro',
+        label: 'Introduction',
+        start: 0,
+        end: 4,
+        vo_line: `Welcome to ${opts.name}.`,
+        actions: [{ type: 'idle', at: 0 }],
+        transition: 'fade_in',
+      },
+      {
+        id: 'outro',
+        label: 'Outro',
+        start: 4,
+        end: 8,
+        vo_line: 'Thanks for watching.',
+        actions: [{ type: 'idle', at: 0 }],
+        transition: 'fade_out',
+      },
+    ],
+  };
+  return JSON.stringify(manifest, null, 2) + '\n';
+}
+
+function prdStubTemplate(opts: ResolvedInitOpts): string {
+  return `# ${opts.name} — product brief
+
+> Fill in each section below. Showrunner's \`understand\` stage reads this file
+> and turns it into \`product_model.json\`, which the \`script\` stage then turns
+> into the manifest that drives recording + voiceover. The more concrete you
+> are here, the less you'll need to hand-edit the manifest afterwards.
+>
+> Delete these blockquote hints once you've replaced them with real content.
+
+## Elevator pitch
+
+> One paragraph (3–5 sentences). What is this product, who is it for, and what
+> single thing should a viewer walk away understanding? Write it like you'd
+> say it to a colleague over coffee, not like marketing copy.
+
+_Example:_ "Atlas is a developer-facing log-tailing platform. It's for backend
+engineers who are tired of grepping through ssh sessions. The pitch is: paste a
+service name, get a live, structured, queryable tail in under five seconds."
+
+## Primary user
+
+> One sentence on who the demo is for. Be specific about the role and the
+> moment they'd be watching this video.
+
+_Example:_ "A backend engineer evaluating logging tools during a team-tooling
+review."
+
+## Top 3 user flows (the demo's spine)
+
+> List the flows in the order the demo should walk through them. For each:
+> name the flow, one sentence describing what the user accomplishes, and any
+> selectors you already know are stable (data-testid is best). The script
+> stage will use this list as its outline.
+
+1. **Flow name** — what the user does (e.g. "create their first project").
+   - Key selectors: \`[data-testid="..."]\`, \`[data-testid="..."]\`
+2. **Flow name** — what the user does.
+   - Key selectors: ...
+3. **Flow name** — what the user does.
+   - Key selectors: ...
+
+## Features to highlight
+
+> Bullet list. These get prioritized in the voiceover and on-screen timing.
+> Leave empty if you want the model to choose.
+
+- Feature A
+- Feature B
+
+## What this demo is NOT
+
+> Optional but useful. Things to *avoid* spending time on — admin pages,
+> settings, the auth flow, anything aspirational.
+
+- Don't show the settings page.
+- Don't mention pricing.
+
+## Tone / style
+
+> One line. Matches \`script.style\` in demo.yaml.
+
+_Default:_ matter-of-fact, technical, no marketing fluff.
+`;
+}
+
+function readmeTemplate(opts: ResolvedInitOpts): string {
+  return `# ${opts.name}
+
+A Showrunner project. The pipeline runs in stages:
+
+1. **Comprehension** — reads docs and code, builds \`product_model.json\` (LLM: ${opts.llm})
+2. **Script** — turns the product model into \`scripts/manifest.json\` (LLM: ${opts.llm})
+3. **Record + Voiceover** — runs Playwright against ${opts.url} while synthesizing VO (TTS: ${opts.tts})
+4. **Mux** — combines everything into \`output/demo_final.mp4\`
+
+## First run
+
+\`\`\`bash
+cp .env.example .env                    # then fill in keys
+$EDITOR docs/PRD.md                     # replace the stub with your product brief
+showrunner doctor --config demo.yaml    # preflight
+showrunner understand --config demo.yaml   # build product_model.json
+showrunner run --config demo.yaml       # script → record → voiceover → mux
+open output/demo_final.mp4
+\`\`\`
+
+If \`understand\` doesn't feel ready, swap it for \`showrunner understand --config demo.yaml --interactive\`
+and answer five questions — it'll generate the product model without needing a PRD.
+
+## Customize
+
+- \`demo.yaml\` — main config (LLM + TTS provider sections are at the top of the file)
+- \`docs/PRD.md\` — product brief consumed by \`understand\`. Replace the stub with real content.
+- \`scripts/seed_demo_data.sh\` — environment prep before recording
+- \`scripts/reset_demo_data.sh\` — per-segment re-take prep
+- \`scripts/teardown.sh\` — cleanup
+
+## Re-record a single segment
+
+If the LLM-generated manifest picks a busted selector and one segment fails,
+demonstrate the right interaction in a live browser instead:
+
+\`\`\`bash
+showrunner record-actions --config demo.yaml --segment <segment-id>
+\`\`\`
+
+Showrunner will replace that segment's actions with what you did.
+
+## Swap providers
+
+You can change provider per-section in \`demo.yaml\` without re-running init. The
+schema accepts:
+
+- **LLM** (\`llm.default.provider\`): \`anthropic\`, \`openai\`, \`agent_bridge\`, \`custom\`
+- **TTS** (\`voiceover.provider.name\`): \`elevenlabs\`, \`openai\`, \`custom\`
+
+Only ElevenLabs returns per-character alignment. Other TTS providers force
+\`voiceover.alignment_strategy: best_effort\` (captions become whole-segment cues
+and \`at_word\` actions degrade to \`at\`).
+`;
+}
