@@ -1,0 +1,66 @@
+name: Maintenance reminders
+
+on:
+  schedule:
+    # Monday 08:57 UTC — weekly triage / dep / audit / upstream scan
+    # (see MAINTENANCE.md "Weekly" section)
+    - cron: "57 8 * * 1"
+    # Last Sunday of the month at 09:03 UTC — monthly e2e validation
+    # (see MAINTENANCE.md "Monthly" section).
+    # The last Sunday of any month falls between day 25 and 31, so this
+    # expression fires only when both conditions hold.
+    - cron: "3 9 25-31 * 0"
+  # Manual trigger for testing — Actions tab → "Maintenance reminders" → Run workflow
+  workflow_dispatch:
+    inputs:
+      message:
+        description: "Test message to push"
+        required: false
+        default: "Manual test from workflow_dispatch"
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Determine ritual type
+        id: ritual
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "title=Showrunner test ping" >> "$GITHUB_OUTPUT"
+            echo "tags=test_tube" >> "$GITHUB_OUTPUT"
+            echo "body=${{ github.event.inputs.message }}" >> "$GITHUB_OUTPUT"
+            echo "click_url=https://github.com/kadj-amoah/showrunner/blob/main/MAINTENANCE.md" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # Schedule-triggered: decide weekly vs monthly by what cron fired.
+          # GitHub Actions exposes the matched cron in github.event.schedule.
+          case "${{ github.event.schedule }}" in
+            "57 8 * * 1")
+              echo "title=Showrunner weekly ritual" >> "$GITHUB_OUTPUT"
+              echo "tags=calendar,coffee" >> "$GITHUB_OUTPUT"
+              echo "body=Monday triage time. ~1.5 hr: issue triage / npm outdated / npm audit / upstream scan / roadmap glance. https://github.com/kadj-amoah/showrunner/issues" >> "$GITHUB_OUTPUT"
+              echo "click_url=https://github.com/kadj-amoah/showrunner/blob/main/MAINTENANCE.md#weekly--monday-morning-15-hr" >> "$GITHUB_OUTPUT"
+              ;;
+            "3 9 25-31 * 0")
+              echo "title=Showrunner monthly review" >> "$GITHUB_OUTPUT"
+              echo "tags=mag,clipboard" >> "$GITHUB_OUTPUT"
+              echo "body=Last Sunday of the month. Full e2e against the reference target + one second target. Update ROADMAP.md if anything slipped." >> "$GITHUB_OUTPUT"
+              echo "click_url=https://github.com/kadj-amoah/showrunner/blob/main/MAINTENANCE.md#monthly--last-sunday" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "title=Showrunner reminder" >> "$GITHUB_OUTPUT"
+              echo "tags=bell" >> "$GITHUB_OUTPUT"
+              echo "body=Scheduled trigger fired with unrecognized cron expression: ${{ github.event.schedule }}" >> "$GITHUB_OUTPUT"
+              echo "click_url=https://github.com/kadj-amoah/showrunner/blob/main/MAINTENANCE.md" >> "$GITHUB_OUTPUT"
+              ;;
+          esac
+
+      - name: Push to ntfy
+        run: |
+          curl -sS \
+            -H "Title: ${{ steps.ritual.outputs.title }}" \
+            -H "Tags: ${{ steps.ritual.outputs.tags }}" \
+            -H "Click: ${{ steps.ritual.outputs.click_url }}" \
+            -H "Priority: default" \
+            -d "${{ steps.ritual.outputs.body }}" \
+            https://ntfy.sh/dev_showrunner
