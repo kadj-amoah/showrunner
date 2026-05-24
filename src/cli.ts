@@ -210,17 +210,37 @@ async function printWelcome(): Promise<void> {
     // not in a Showrunner project root
   }
 
-  const browserMissing = await isChromiumMissing();
+  const missing = await detectMissingPrereqs();
+  const anyMissing = missing.ffmpeg || missing.ffprobe || missing.chromium;
 
   const lines: string[] = ['', `Showrunner v1.1.7`, ''];
 
-  // Surface one state at a time. Higher-priority states short-circuit lower ones.
-  if (browserMissing) {
-    lines.push(`Showrunner records using Chromium. You haven't installed it yet.`);
+  // First-time setup short-circuits everything else — without these tools,
+  // doctor/init/run can't do anything useful.
+  if (anyMissing) {
+    lines.push(`First-time setup. Showrunner needs these system tools:`);
     lines.push(``);
-    lines.push(`  showrunner install-browser`);
-    lines.push(``);
-    lines.push(`(~150 MB, one-off. Re-run \`showrunner\` after it finishes for the next step.)`);
+    if (missing.ffmpeg || missing.ffprobe) {
+      const which =
+        missing.ffmpeg && missing.ffprobe
+          ? 'ffmpeg / ffprobe'
+          : missing.ffmpeg
+            ? 'ffmpeg'
+            : 'ffprobe';
+      lines.push(`  ${which} — install via your OS package manager:`);
+      lines.push(`    Linux (apt):    sudo apt install ffmpeg`);
+      lines.push(`    Linux (pacman): sudo pacman -S ffmpeg`);
+      lines.push(`    Linux (dnf):    sudo dnf install ffmpeg`);
+      lines.push(`    macOS:          brew install ffmpeg`);
+      lines.push(`    Windows:        winget install Gyan.FFmpeg`);
+      lines.push(``);
+    }
+    if (missing.chromium) {
+      lines.push(`  chromium recording browser — install via:`);
+      lines.push(`    showrunner install-browser`);
+      lines.push(``);
+    }
+    lines.push(`Re-run \`showrunner\` once those are in place.`);
   } else if (inProject) {
     lines.push(`This is a Showrunner project (found demo.yaml).`);
     lines.push(``);
@@ -231,24 +251,70 @@ async function printWelcome(): Promise<void> {
   } else {
     lines.push(`No Showrunner project in this directory. To create one:`);
     lines.push(``);
-    lines.push(`  showrunner init`);
+    lines.push(`  cd <your-product's-root-directory>   # the dir with package.json / etc.`);
+    lines.push(`  showrunner init                       # then run init from THERE`);
     lines.push(``);
-    lines.push(`\`init\` scaffolds the project and prints the next 4 commands tailored to your provider choice.`);
+    lines.push(`\`init\` scaffolds inside cwd, so cwd must be your product. The wizard will`);
+    lines.push(`confirm the path before doing anything destructive.`);
   }
 
   lines.push('');
   process.stdout.write(lines.join('\n'));
 }
 
-async function isChromiumMissing(): Promise<boolean> {
+interface MissingPrereqs {
+  ffmpeg: boolean;
+  ffprobe: boolean;
+  chromium: boolean;
+}
+
+async function detectMissingPrereqs(): Promise<MissingPrereqs> {
+  const [ffmpegOk, ffprobeOk, chromiumOk] = await Promise.all([
+    binaryOnPath('ffmpeg'),
+    binaryOnPath('ffprobe'),
+    chromiumInstalled(),
+  ]);
+  return {
+    ffmpeg: !ffmpegOk,
+    ffprobe: !ffprobeOk,
+    chromium: !chromiumOk,
+  };
+}
+
+async function binaryOnPath(name: string): Promise<boolean> {
+  const { spawn } = await import('node:child_process');
+  return new Promise((resolve) => {
+    const useShell = process.platform === 'win32';
+    const child = spawn(name, ['-version'], {
+      stdio: ['ignore', 'ignore', 'ignore'],
+      shell: useShell,
+    });
+    let settled = false;
+    const finish = (ok: boolean): void => {
+      if (settled) return;
+      settled = true;
+      resolve(ok);
+    };
+    child.on('error', () => finish(false));
+    child.on('exit', (code) => finish(code === 0));
+    setTimeout(() => {
+      if (!settled) {
+        child.kill('SIGKILL');
+        finish(false);
+      }
+    }, 3000);
+  });
+}
+
+async function chromiumInstalled(): Promise<boolean> {
   try {
     const { chromium } = await import('playwright-core');
     const exec = chromium.executablePath();
     const { stat } = await import('node:fs/promises');
     await stat(exec);
-    return false;
-  } catch {
     return true;
+  } catch {
+    return false;
   }
 }
 

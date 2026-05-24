@@ -38,6 +38,36 @@ const SLUG_RE = /^[a-z0-9](?:[a-z0-9._-]*[a-z0-9])?$/i;
 export async function runWizard(env: DetectedEnvironment): Promise<WizardResult | null> {
   intro('Showrunner setup');
 
+  // Treat-users-like-5 rule: confirm the working directory before doing anything
+  // destructive. Most "Showrunner is broken" reports trace back to running `init`
+  // in the wrong directory — typically a parent dir, a sibling, or ~/Downloads.
+  // The scaffold will be created INSIDE the cwd shown below, and downstream
+  // commands (especially `understand --agent`) assume cwd is the product root.
+  note(
+    [
+      `Showrunner will scaffold a new project inside:`,
+      ``,
+      `  ${process.cwd()}`,
+      ``,
+      `That directory should be the root of the product you want to demo (the dir`,
+      `where your package.json / pyproject.toml / etc. lives). If you're somewhere`,
+      `else, cancel with Ctrl+C, \`cd\` to your product's root, and re-run`,
+      `\`showrunner init\` from there.`,
+    ].join('\n'),
+    'Heads up — confirm your starting directory',
+  );
+
+  const proceedFromCwd = await ask(
+    confirm({
+      message: 'Continue scaffolding from this directory?',
+      initialValue: true,
+    }),
+  );
+  if (proceedFromCwd === null || proceedFromCwd === false) {
+    cancel('Setup cancelled. Re-run `showrunner init` from your product root.');
+    return null;
+  }
+
   note(formatDetection(env), 'Detected on this machine');
 
   const projectName = await ask(

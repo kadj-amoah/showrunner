@@ -76,15 +76,37 @@ npx playwright install chromium
 
 Verify any of the above with `showrunner --help`.
 
-## First demo in five commands
+## After installing: run the doctor first
+
+Before doing anything else, run a system check. This catches missing prerequisites (ffmpeg, ffprobe, the recording browser) before they bite you mid-pipeline:
 
 ```bash
-showrunner init --name my-demo --url http://localhost:3000
-cd my-demo
-cp .env.example .env                       # then paste in your provider keys
+showrunner doctor      # no -c flag yet — this is the system-only pass
+```
+
+If it flags anything missing, fix it now. The most common gaps are `ffmpeg` (install via your OS package manager: `apt`, `pacman`, `dnf`, `brew`, or `winget`) and the recording browser (`showrunner install-browser`).
+
+## First demo in six commands
+
+**Step 1 is the one most people get wrong: `cd` into the root of the product you want to demo *before* running `init`.** The scaffold creates a `showrunner-demo/` directory inside your current location, and several things in `demo.yaml` (`recording.target_url`, `project.codebase_root`, lifecycle scripts) are wired up assuming the parent directory is your product's root. If you run `init` from a random location (your home directory, `~/Downloads`, etc.), the resulting project will target nothing and you'll get a reel about an empty directory.
+
+```bash
+# 1. Navigate to your product's root directory — the same place your package.json / pyproject.toml / etc. lives.
+cd ~/my-product
+
+# 2. Scaffold the demo project (creates ./showrunner-demo/ inside your product).
+#    `init` is interactive by default — it'll prompt for provider keys, target URL, etc.
+showrunner init
+
+# 3. Move into the scaffold and finish setup. The wizard already wrote .env if you pasted keys.
+cd showrunner-demo
 $EDITOR docs/PRD.md                        # replace the stub with your product brief
-showrunner doctor -c demo.yaml             # preflight: 11–12 PASS/FAIL rows
-showrunner run -c demo.yaml                # the whole pipeline
+
+# 4. Full preflight (now with project context — ~11–12 PASS/FAIL rows).
+showrunner doctor -c demo.yaml
+
+# 5. Run the pipeline.
+showrunner run -c demo.yaml
 open output/demo_final.mp4
 ```
 
