@@ -2,6 +2,27 @@
 
 All notable changes to Showrunner are documented here. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); the project tracks loose semver — minor bumps for new capability, patch for fixes.
 
+## [1.1.1] — 2026-05-24
+
+### Changed
+
+- Replace `playwright` with `playwright-core`. Eliminates the ~300 MB browser auto-download on `npm install`. `npx playwright install chromium` is now a required post-install step (enforced by `doctor`).
+- `doctor` failure rows include per-OS install hints for `ffmpeg` and `ffprobe` (apt / pacman / dnf on Linux, brew on macOS, winget / choco on Windows).
+- `doctor` probes the root / admin Playwright cache and warns when a browser is present there but missing from the user cache (the typical aftermath of `sudo npx playwright install`).
+
+### Removed
+
+- `fluent-ffmpeg` and `@types/fluent-ffmpeg`. The package was listed but never imported; ffmpeg invocations have always gone through `child_process.spawn` via the internal `runFfmpeg()` wrapper.
+
+### Fixed
+
+- Generated Playwright spec at `src/manifest/playwrightCodegen.ts` imported `expect` from `'playwright'`, which doesn't export it. The `assert_visible` action now emits `locator.waitFor({ state: 'visible' })`.
+
+### Docs
+
+- README leads with `npx @kadj-amoah/showrunner`. Browser bootstrap (`npx playwright install chromium`) is called out as required.
+- Troubleshooting note added for Arch / CachyOS / Fedora users who see Playwright's "OS not officially supported" warning during browser install.
+
 ## [1.1.0] — 2026-05-23
 
 First tagged release. Versioned `1.1.0` rather than `0.1.0` because the project has been tracked as "v1.1 — reliability hardening + provider-agnostic refactor" throughout development; this is the first cut where the pipeline works end-to-end against real Next.js targets and the LLM + TTS layers are swappable. No `1.0.0` was ever published.
@@ -62,3 +83,4 @@ A real end-to-end run against the Credstone Atlas marketing site produced `outpu
 - Full mux preflight + thread cap on a 5.9 GB RAM machine with 1.1 GB free at run time
 
 [1.1.0]: https://github.com/kadj-amoah/showrunner/releases/tag/v1.1.0
+[1.1.1]: https://github.com/kadj-amoah/showrunner/releases/tag/v1.1.1

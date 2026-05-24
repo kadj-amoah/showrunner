@@ -92,13 +92,44 @@ export async function initCommand(opts: InitOpts): Promise<void> {
   await writeFile(join(projectRoot, 'README.md'), readmeTemplate(resolved), 'utf8');
 
   logger.info(`Showrunner project scaffolded at ${projectRoot} (llm=${resolved.llm}, tts=${resolved.tts})`);
-  logger.info(`Next steps:
-  cd ${opts.name}
-  cp .env.example .env                    # fill in API keys
-  $EDITOR docs/PRD.md                     # replace the stub with your product brief
-  showrunner doctor --config demo.yaml    # preflight checks
-  showrunner understand --config demo.yaml   # build product_model.json
-  showrunner run --config demo.yaml       # the full pipeline`);
+  printNextSteps(opts.name, resolved);
+}
+
+function printNextSteps(projectName: string, resolved: ResolvedInitOpts): void {
+  const envVars = requiredEnvVars(resolved);
+  const lines: string[] = ['', `Next:`, ''];
+
+  let step = 1;
+  lines.push(`  ${step++}. cd ${projectName}`);
+
+  if (envVars.length > 0) {
+    const keysList = envVars.join(', ');
+    lines.push(`  ${step++}. cp .env.example .env       # then paste in: ${keysList}`);
+  } else {
+    lines.push(
+      `  ${step++}. (no .env needed — agent_bridge LLM + ${resolved.tts} TTS don't require API keys)`,
+    );
+  }
+
+  lines.push(`  ${step++}. $EDITOR docs/PRD.md          # replace the stub with your product brief`);
+  lines.push(`  ${step++}. showrunner doctor -c demo.yaml`);
+  lines.push(`  ${step++}. showrunner run -c demo.yaml  # → output/demo_final.mp4`);
+  lines.push('');
+  lines.push(
+    `Optional: \`showrunner understand -c demo.yaml --interactive\` if you'd rather answer five questions than write the PRD upfront.`,
+  );
+  lines.push('');
+
+  process.stdout.write(lines.join('\n'));
+}
+
+function requiredEnvVars(resolved: ResolvedInitOpts): string[] {
+  const vars = new Set<string>();
+  if (resolved.llm === 'anthropic') vars.add('ANTHROPIC_API_KEY');
+  if (resolved.llm === 'openai') vars.add('OPENAI_API_KEY');
+  if (resolved.tts === 'elevenlabs') vars.add('ELEVENLABS_API_KEY');
+  if (resolved.tts === 'openai') vars.add('OPENAI_API_KEY');
+  return [...vars];
 }
 
 function validateChoice<T extends string>(

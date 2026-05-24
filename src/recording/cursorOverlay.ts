@@ -1,4 +1,4 @@
-import type { BrowserContext, Page } from 'playwright';
+﻿import type { BrowserContext, Page } from 'playwright-core';
 
 const CURSOR_INIT_SCRIPT = `
 (() => {
@@ -71,7 +71,7 @@ const CURSOR_INIT_SCRIPT = `
 
   if (tryInstall()) return;
 
-  console.log('[showrunner-cursor] deferring — body not ready');
+  console.log('[showrunner-cursor] deferring â€” body not ready');
 
   const tick = () => { if (tryInstall()) cleanup(); };
   const observer = new MutationObserver(tick);
@@ -131,7 +131,7 @@ interface CursorDocWithTransition {
 }
 
 // easeInOutCubic: pronounced ease at both ends, fast through the middle.
-// cubic-bezier(0.42, 0, 0.58, 1) — much more dramatic than Material's standard curve.
+// cubic-bezier(0.42, 0, 0.58, 1) â€” much more dramatic than Material's standard curve.
 const CURSOR_EASE = 'cubic-bezier(0.42, 0, 0.58, 1)';
 
 export async function moveCursor(
@@ -154,7 +154,7 @@ export async function moveCursor(
       { x, y, ms: motionMs, ease: CURSOR_EASE },
     );
   } catch {
-    // page closed or eval failed — cursor is best-effort
+    // page closed or eval failed â€” cursor is best-effort
   }
 }
 

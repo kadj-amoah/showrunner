@@ -1,4 +1,4 @@
-import { mkdir } from 'node:fs/promises';
+﻿import { mkdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import {
   chromium,
@@ -8,7 +8,7 @@ import {
   type BrowserContext,
   type BrowserContextOptions,
   type Page,
-} from 'playwright';
+} from 'playwright-core';
 import type { RecordingConfig } from '../config/schema.js';
 import { buildAuthPlan } from './auth.js';
 import {
@@ -29,7 +29,7 @@ export interface HeadedSessionOptions {
   withCursor?: boolean;
   /**
    * When true, run any pre-configured `auth` plan before returning the page.
-   * Defaults to false — most interactive commands (capture-auth, record-actions)
+   * Defaults to false â€” most interactive commands (capture-auth, record-actions)
    * want a fresh, unauthenticated browser so the operator can drive it.
    */
   applyAuth?: boolean;

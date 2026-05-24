@@ -1,4 +1,4 @@
-import { chromium, firefox, webkit } from 'playwright';
+﻿import { chromium, firefox, webkit } from 'playwright-core';
 import type { RecordingConfig } from '../config/schema.js';
 import { SELECTOR_FOR_FN_SOURCE } from '../recording/selectorHeuristic.js';
 import { logger } from '../util/logger.js';
@@ -33,7 +33,7 @@ export interface ScrapeOptions {
  * actionable DOM into a flat selector inventory. The LLM in the `script`
  * stage uses this as ground truth so it can't hallucinate selectors.
  *
- * Failure is non-fatal — caller should treat a thrown error as "skip preflight
+ * Failure is non-fatal â€” caller should treat a thrown error as "skip preflight
  * and fall back to LLM-only generation," logging a warning.
  */
 export async function scrapeSelectorInventory(
@@ -57,7 +57,7 @@ export async function scrapeSelectorInventory(
     try {
       await page.waitForLoadState('networkidle', { timeout: networkIdleMs });
     } catch {
-      logger.debug('domPreflight: networkidle did not fire within budget — proceeding');
+      logger.debug('domPreflight: networkidle did not fire within budget â€” proceeding');
     }
 
     const items = (await page.evaluate(

@@ -1,6 +1,6 @@
-import { mkdir } from 'node:fs/promises';
+﻿import { mkdir } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
-import { errors as playwrightErrors, type Page } from 'playwright';
+import { errors as playwrightErrors, type Page } from 'playwright-core';
 import type { Action } from '../manifest/schema.js';
 import { moveCursor, pulseCursor } from './cursorOverlay.js';
 import { resolveSelector } from './selector.js';

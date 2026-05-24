@@ -19,15 +19,28 @@ Showrunner is built to deploy on Linux but develops fine on WSL2 or macOS.
 
 ## Install
 
-Published to both npmjs.org (zero-friction install) and GitHub Packages (mirrors the GitHub Releases timeline). Pick whichever matches your workflow:
+Published to both npmjs.org (zero-friction install) and GitHub Packages (mirrors the GitHub Releases timeline). Pick whichever matches your workflow.
 
-### npm (recommended — no auth needed)
+Showrunner ships with `playwright-core`, which means **no browsers are downloaded during `npm install`**. You must run the browser-bootstrap step (`npx playwright install chromium`) after install — otherwise the first recording attempt will fail with a "browser binary missing" error from `doctor`.
+
+### npx (no install, recommended for first-time use)
+
+```bash
+npx @kadj-amoah/showrunner --version    # → 1.1.1
+npx playwright install chromium         # required: bootstraps the browser
+```
+
+Running `showrunner` with no arguments prints a context-aware welcome with the next command to run — from outside a project it suggests `showrunner init`; inside a project root it suggests `showrunner doctor -c demo.yaml`.
+
+### Global install (`npm i -g`)
 
 ```bash
 npm install -g @kadj-amoah/showrunner
-npx playwright install chromium
-showrunner --version    # → 1.1.0
+npx playwright install chromium         # required: bootstraps the browser
+showrunner --version                    # → 1.1.1
 ```
+
+> **Linux note:** if `npm i -g` needs `sudo`, **do not** run `sudo npx playwright install` afterwards — the browser will land in `/root/.cache/ms-playwright` where your user-mode `showrunner` process can't find it. Run `npx playwright install chromium` as your normal user. (`showrunner doctor` will detect and warn about this case.)
 
 ### GitHub Packages
 
@@ -46,7 +59,7 @@ npx playwright install chromium
 ### Directly from a git tag (no registry at all)
 
 ```bash
-npm install -g github:kadj-amoah/showrunner#v1.1.0
+npm install -g github:kadj-amoah/showrunner#v1.1.1
 npx playwright install chromium
 ```
 
@@ -152,6 +165,8 @@ showrunner trace -c demo.yaml --segment <id>
 - **`vo_review_gate` halted the pipeline** — by design. Edit `scripts/vo_script.txt`, then `showrunner approve-vo -c demo.yaml`. (The init scaffold ships with this off — you have to opt in via `script.vo_review_gate: true`.)
 - **Output file is locked by a media player** — close VLC/QuickTime/your-browser-tab. Showrunner falls back to writing a timestamped sibling MP4 with a warning, but the canonical path needs the lock released.
 - **DOM preflight failed** — your dev server isn't on the URL in `demo.yaml`, or it's behind auth. Bring the server up, configure `recording.auth` for session/form/setup-script flows.
+- **Playwright warns "your OS is not officially supported"** — on Arch / CachyOS / Fedora during `npx playwright install`. Safe to ignore; Playwright falls back to the Ubuntu 24.04 build, which works fine.
+- **`browser binary missing` even though I ran `npx playwright install`** — you likely ran the install under `sudo`, so the browser is in the root cache. Re-run as your normal user: `npx playwright install chromium`. `showrunner doctor` detects this and prints the specific cache it found the browser in.
 
 ## Configuration reference
 

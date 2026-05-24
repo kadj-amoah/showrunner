@@ -1,6 +1,6 @@
-import { mkdir, rename, writeFile } from 'node:fs/promises';
+﻿import { mkdir, rename, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
-import { chromium, firefox, webkit } from 'playwright';
+import { chromium, firefox, webkit } from 'playwright-core';
 import { loadConfig, ConfigError } from '../config/loader.js';
 import { readManifest, ManifestError } from '../manifest/io.js';
 import { buildAuthPlan, AuthError } from '../recording/auth.js';
@@ -154,7 +154,7 @@ export async function rerunSegmentCommand(opts: RerunOpts): Promise<void> {
     await ctx.close();
 
     if (!videoHandle) {
-      logger.error('No video captured — recordVideo may have been ignored');
+      logger.error('No video captured â€” recordVideo may have been ignored');
       process.exit(1);
     }
     const original = await videoHandle.path();
@@ -180,7 +180,7 @@ export async function rerunSegmentCommand(opts: RerunOpts): Promise<void> {
       'utf8',
     );
 
-    logger.info(`Segment ${segment.id} re-recorded → ${dest}`, { metadata: metadataPath });
+    logger.info(`Segment ${segment.id} re-recorded â†’ ${dest}`, { metadata: metadataPath });
     if (failure) {
       process.exit(1);
     }

@@ -1,8 +1,9 @@
-import { spawn } from 'node:child_process';
-import { stat, access, constants } from 'node:fs/promises';
-import { isAbsolute, resolve, dirname } from 'node:path';
+﻿import { spawn } from 'node:child_process';
+import { stat, access, constants, readdir } from 'node:fs/promises';
+import { isAbsolute, resolve, dirname, join } from 'node:path';
+import { homedir, platform as osPlatform } from 'node:os';
 import { request as undiciRequest } from 'undici';
-import { chromium, firefox, webkit } from 'playwright';
+import { chromium, firefox, webkit } from 'playwright-core';
 import type { ShowrunnerConfig } from '../config/schema.js';
 import { loadConfig, ConfigError } from '../config/loader.js';
 import { inspectProviderEnv } from '../config/providerEnv.js';
@@ -36,7 +37,7 @@ export async function doctorCommand(opts: DoctorOpts): Promise<void> {
   try {
     process.loadEnvFile(envFile);
   } catch {
-    // No .env in project dir — env vars may come from the shell or fail the check below.
+    // No .env in project dir â€” env vars may come from the shell or fail the check below.
   }
 
   const results = await runDoctorChecks(opts.config);
@@ -47,6 +48,7 @@ export async function doctorCommand(opts: DoctorOpts): Promise<void> {
     for (const r of results) printRow(r);
     const summary = summarize(results);
     if (summary.fail > 0) {
+      printFixOrder(results);
       logger.error(`doctor: ${summary.fail} FAIL, ${summary.warn} WARN, ${summary.pass} PASS`);
     } else if (summary.warn > 0) {
       logger.warn(`doctor: ${summary.warn} WARN, ${summary.pass} PASS`);
@@ -82,10 +84,18 @@ export async function runDoctorChecks(configPath: string): Promise<CheckResult[]
   // 2. Provider env vars.
   for (const row of inspectProviderEnv(config)) {
     const suffix = row.stage ? ` (${row.stage} override)` : '';
-    results.push({
-      status: row.set ? 'PASS' : 'FAIL',
-      label: `${row.slot} provider=${row.provider}${suffix}, ${row.envVar} ${row.set ? 'set' : 'NOT set'}`,
-    });
+    if (row.set) {
+      results.push({
+        status: 'PASS',
+        label: `${row.slot} provider=${row.provider}${suffix}, ${row.envVar} set`,
+      });
+    } else {
+      results.push({
+        status: 'FAIL',
+        label: `${row.slot} provider=${row.provider}${suffix}, ${row.envVar} NOT set`,
+        detail: providerEnvHint(row.slot, row.provider, row.envVar),
+      });
+    }
   }
 
   // 3. ffmpeg + ffprobe.
@@ -155,9 +165,21 @@ function summarize(results: CheckResult[]): { pass: number; warn: number; fail: 
   };
 }
 
+function printFixOrder(results: CheckResult[]): void {
+  const fails = results.filter((r) => r.status === 'FAIL');
+  if (fails.length === 0) return;
+  process.stdout.write('\n');
+  logger.info('To fix:');
+  fails.forEach((r, i) => {
+    const hint = r.detail ? ` — ${r.detail}` : '';
+    logger.info(`  ${i + 1}. ${r.label}${hint}`);
+  });
+  process.stdout.write('\n');
+}
+
 function printRow(r: CheckResult): void {
   const tag = `[${r.status}]`;
-  const line = `${tag} ${r.label}${r.detail ? ` — ${r.detail}` : ''}`;
+  const line = `${tag} ${r.label}${r.detail ? ` â€” ${r.detail}` : ''}`;
   if (r.status === 'FAIL') logger.error(line);
   else if (r.status === 'WARN') logger.warn(line);
   else logger.info(line);
@@ -171,17 +193,50 @@ async function checkBinary(name: string, args: string[]): Promise<CheckResult> {
       stdout += chunk.toString('utf8');
     });
     child.on('error', () => {
-      resolve({ status: 'FAIL', label: `${name} not on PATH` });
+      resolve({
+        status: 'FAIL',
+        label: `${name} not on PATH`,
+        detail: installHintFor(name),
+      });
     });
     child.on('exit', (code) => {
       if (code === 0) {
         const firstLine = stdout.split('\n')[0]?.trim() ?? '';
         resolve({ status: 'PASS', label: `${name} present`, detail: firstLine });
       } else {
-        resolve({ status: 'FAIL', label: `${name} exited with code ${code}` });
+        resolve({
+          status: 'FAIL',
+          label: `${name} exited with code ${code}`,
+          detail: installHintFor(name),
+        });
       }
     });
   });
+}
+
+function providerEnvHint(slot: 'llm' | 'tts', provider: string, envVar: string): string {
+  const dashboards: Record<string, string> = {
+    anthropic: 'https://console.anthropic.com/settings/keys',
+    openai: 'https://platform.openai.com/api-keys',
+    elevenlabs: 'https://elevenlabs.io/app/settings/api-keys',
+  };
+  const dash = dashboards[provider];
+  const dashHint = dash ? ` (get a key from ${dash})` : '';
+  const altHint =
+    slot === 'llm'
+      ? ` — or switch llm.default.provider to "agent_bridge" in demo.yaml to use a local CLI agent (no API key needed)`
+      : '';
+  return `add ${envVar}=... to your project's .env file${dashHint}${altHint}`;
+}
+
+function installHintFor(binary: string): string {
+  const p = osPlatform();
+  if (binary !== 'ffmpeg' && binary !== 'ffprobe') return '';
+  // ffprobe ships alongside ffmpeg in every distro's ffmpeg package, so the hint is the same.
+  if (p === 'darwin') return 'install via `brew install ffmpeg`';
+  if (p === 'win32') return 'install via `winget install Gyan.FFmpeg` or `choco install ffmpeg`';
+  // linux — show the three common package managers
+  return 'install via `apt install ffmpeg` (Debian/Ubuntu), `pacman -S ffmpeg` (Arch), or `dnf install ffmpeg` (Fedora)';
 }
 
 async function checkPlaywrightBrowser(config: ShowrunnerConfig): Promise<CheckResult> {
@@ -195,12 +250,57 @@ async function checkPlaywrightBrowser(config: ShowrunnerConfig): Promise<CheckRe
       detail: exec,
     };
   } catch (err) {
+    // Probe the sudo/root cache to give a better hint when the user ran
+    // `sudo npx playwright install` and the browser landed in /root/.cache
+    // (or %SystemRoot%\System32\config\systemprofile\AppData\Local on Windows).
+    const sudoHit = await probeRootCache(browserName);
+    const fallback = `run \`npx playwright install ${browserName}\``;
+    if (sudoHit) {
+      return {
+        status: 'FAIL',
+        label: `playwright ${browserName} binary missing for current user, but found in root/admin cache`,
+        detail:
+          `${sudoHit} — re-run install WITHOUT sudo so the browser lands in your user cache: ${fallback}`,
+      };
+    }
     return {
       status: 'FAIL',
       label: `playwright ${browserName} binary missing`,
-      detail: `run \`npx playwright install ${browserName}\` (${err instanceof Error ? err.message : String(err)})`,
+      detail: `${fallback} (${err instanceof Error ? err.message : String(err)})`,
     };
   }
+}
+
+async function probeRootCache(browserName: string): Promise<string | null> {
+  const candidates: string[] = [];
+  const home = homedir();
+  const p = osPlatform();
+
+  if (p === 'linux') {
+    candidates.push('/root/.cache/ms-playwright');
+  } else if (p === 'darwin') {
+    candidates.push('/var/root/Library/Caches/ms-playwright');
+  } else if (p === 'win32') {
+    const systemRoot = process.env['SystemRoot'] ?? 'C:\\Windows';
+    candidates.push(join(systemRoot, 'System32', 'config', 'systemprofile', 'AppData', 'Local', 'ms-playwright'));
+  }
+
+  // Don't flag if the current user is root — the executablePath() above would have hit.
+  if (candidates.length === 0) return null;
+  if (home === '/root' || home === '/var/root') return null;
+
+  for (const dir of candidates) {
+    try {
+      const entries = await readdir(dir);
+      const match = entries.find((e) => e.toLowerCase().startsWith(browserName.toLowerCase()));
+      if (match) {
+        return `found at ${join(dir, match)}`;
+      }
+    } catch {
+      // dir doesn't exist or unreadable — fine, try next
+    }
+  }
+  return null;
 }
 
 async function checkTargetReachable(url: string): Promise<CheckResult> {
@@ -223,10 +323,12 @@ async function checkTargetReachable(url: string): Promise<CheckResult> {
       label: `target ${url} returned HTTP ${res.statusCode}`,
     };
   } catch (err) {
+    const reason = err instanceof Error ? err.message.trim() : String(err).trim();
+    const prefix = reason ? `${reason} — ` : '';
     return {
       status: 'FAIL',
       label: `target ${url} not reachable`,
-      detail: err instanceof Error ? err.message : String(err),
+      detail: `${prefix}start your dev server on this URL, or change \`recording.target_url\` in demo.yaml`,
     };
   }
 }
@@ -235,7 +337,11 @@ async function checkScript(label: string, abs: string): Promise<CheckResult> {
   try {
     await stat(abs);
   } catch {
-    return { status: 'FAIL', label: `${label} not found`, detail: abs };
+    return {
+      status: 'FAIL',
+      label: `${label} not found`,
+      detail: `expected at ${abs} — re-scaffold (\`showrunner init\` writes these) or remove the entry from demo.yaml's recording.state block`,
+    };
   }
   if (process.platform !== 'win32') {
     try {

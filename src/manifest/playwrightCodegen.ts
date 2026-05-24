@@ -21,7 +21,7 @@ export function renderPlaywrightSpec(inputs: CodegenInputs): string {
   const { manifest, recording, targetUrl, videoDir, traceDir } = inputs;
 
   const launchLines = [
-    `import { chromium, firefox, webkit, expect, type BrowserContext } from 'playwright';`,
+    `import { chromium, firefox, webkit, type BrowserContext } from 'playwright-core';`,
     `import { mkdirSync } from 'node:fs';`,
     ``,
     `const VIDEO_DIR = ${JSON.stringify(videoDir)};`,
@@ -114,7 +114,7 @@ function renderAction(action: Action): string {
     case 'wait':
       return `await page.waitForTimeout(${action.ms});`;
     case 'assert_visible':
-      return `await expect(page.locator(${JSON.stringify(flattenSelector(action.selector))}).first()).toBeVisible();`;
+      return `await page.locator(${JSON.stringify(flattenSelector(action.selector))}).first().waitFor({ state: 'visible' });`;
     case 'press':
       return action.selector
         ? `await page.locator(${JSON.stringify(flattenSelector(action.selector))}).first().press(${JSON.stringify(action.key)});`

@@ -1,10 +1,28 @@
 import { resolve } from 'node:path';
 import { loadConfig, ConfigError } from '../config/loader.js';
-import { run } from '../pipeline/run.js';
+import { run, PipelineStageError } from '../pipeline/run.js';
 import { logger } from '../util/logger.js';
 import type { StageName } from '../pipeline/types.js';
 import { runDoctorChecks } from './doctor.js';
 import { formatResolution, resolvePreset } from '../util/resolutionPresets.js';
+
+const STAGE_REMEDIATION: Record<StageName, string> = {
+  comprehension:
+    'Check the LLM provider env (or switch llm.default.provider to agent_bridge in demo.yaml). ' +
+    'If you already have a product_model.json, skip this stage: --stages script,record,voiceover,mux',
+  script:
+    'Manifest generation failed. Inspect scripts/manifest.json if it was partially written. ' +
+    'If the LLM is misbehaving, hand-author scripts/manifest.json and resume: --stages record,voiceover,mux',
+  record:
+    'Playwright recording failed. Inspect with `showrunner trace -c <config> --all` or `--segment <id>`. ' +
+    'Demo a problem segment manually with `showrunner record-actions -c <config> --segment <id>`.',
+  voiceover:
+    'TTS synthesis or alignment failed. Check your TTS provider env. ' +
+    'If alignment is the issue, set voiceover.alignment_strategy: best_effort in demo.yaml.',
+  mux:
+    'ffmpeg mux failed. Check the `doctor` row about free disk + RAM. ' +
+    'Cap libx264 threads with `SHOWRUNNER_FFMPEG_THREADS=1` if RAM is tight.',
+};
 
 export interface RunOpts {
   config: string;
@@ -96,6 +114,12 @@ export async function runCommand(opts: RunOpts): Promise<void> {
       buildManifest: result.buildManifestPath,
     });
   } catch (err) {
+    if (err instanceof PipelineStageError) {
+      logger.error(`Pipeline failed in stage \`${err.stage}\`: ${err.message}`);
+      const remediation = STAGE_REMEDIATION[err.stage];
+      if (remediation) logger.error(`To fix: ${remediation}`);
+      process.exit(1);
+    }
     const message = err instanceof Error ? err.message : String(err);
     logger.error(`Pipeline failed: ${message}`);
     process.exit(1);

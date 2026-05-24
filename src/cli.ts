@@ -22,13 +22,18 @@ const program = new Command();
 program
   .name('showrunner')
   .description('Automated product demo recording & production tool')
-  .version('1.1.0')
+  .version('1.1.1')
   .option('--json', 'emit structured JSON logs to stdout')
   .option('--log-level <level>', 'log level (debug|info|warn|error)')
   .hook('preAction', (thisCmd) => {
     const opts = thisCmd.opts<{ json?: boolean; logLevel?: string }>();
     if (opts.json) logger.setJson(true);
     if (opts.logLevel) logger.setLevel(opts.logLevel as 'debug' | 'info' | 'warn' | 'error');
+  })
+  .action(async () => {
+    // Bare `showrunner` with no subcommand: print a context-aware welcome
+    // instead of falling through to `--help`.
+    await printWelcome();
   });
 
 const stageChoices = [...STAGE_NAMES];
@@ -167,6 +172,45 @@ program.parseAsync(process.argv).catch((err: unknown) => {
   logger.error(message);
   process.exit(1);
 });
+
+async function printWelcome(): Promise<void> {
+  const { access } = await import('node:fs/promises');
+  const { resolve } = await import('node:path');
+  const demoYaml = resolve(process.cwd(), 'demo.yaml');
+  let inProject = false;
+  try {
+    await access(demoYaml);
+    inProject = true;
+  } catch {
+    // not in a Showrunner project root
+  }
+
+  const lines: string[] = ['', `Showrunner v1.1.1 — automated product-demo recording & production`, ''];
+  if (inProject) {
+    lines.push(`Detected demo.yaml in this directory. Likely next:`);
+    lines.push(``);
+    lines.push(`  showrunner doctor -c demo.yaml      # preflight checks`);
+    lines.push(`  showrunner run -c demo.yaml         # run the full pipeline`);
+    lines.push(``);
+    lines.push(`Other commands: \`showrunner --help\``);
+  } else {
+    lines.push(`No demo.yaml here. To scaffold a new project:`);
+    lines.push(``);
+    lines.push(`  showrunner init --name my-demo --url http://localhost:3000`);
+    lines.push(``);
+    lines.push(`Then inside the new directory:`);
+    lines.push(``);
+    lines.push(`  cd my-demo`);
+    lines.push(`  cp .env.example .env                 # paste provider keys, or use agent_bridge (no keys)`);
+    lines.push(`  $EDITOR docs/PRD.md                  # write your product brief`);
+    lines.push(`  showrunner doctor -c demo.yaml       # preflight`);
+    lines.push(`  showrunner run -c demo.yaml          # full pipeline → output/demo_final.mp4`);
+    lines.push(``);
+    lines.push(`See all commands: \`showrunner --help\``);
+  }
+  lines.push('');
+  process.stdout.write(lines.join('\n'));
+}
 
 function parseStages(value: string): StageName[] {
   const requested = value.split(',').map((s) => s.trim());

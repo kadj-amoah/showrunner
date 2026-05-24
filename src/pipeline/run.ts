@@ -18,6 +18,17 @@ import {
   type StageResult,
 } from './types.js';
 
+export class PipelineStageError extends Error {
+  override readonly name = 'PipelineStageError';
+  constructor(
+    readonly stage: StageName,
+    message: string,
+    override readonly cause?: unknown,
+  ) {
+    super(message);
+  }
+}
+
 const STAGES_BY_NAME: Record<StageName, Stage> = {
   comprehension: comprehensionStage,
   script: scriptStage,
@@ -64,7 +75,14 @@ export async function run(
       continue;
     }
     const stage = STAGES_BY_NAME[name];
-    const result = await stage.run(ctx);
+    let result: StageResult;
+    try {
+      result = await stage.run(ctx);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      logger.event({ stage: name, status: 'failed', error: message });
+      throw new PipelineStageError(name, message, err);
+    }
     results.push(result);
     logger.event({
       stage: name,

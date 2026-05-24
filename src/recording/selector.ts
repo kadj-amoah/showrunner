@@ -1,4 +1,4 @@
-import type { Locator, Page } from 'playwright';
+﻿import type { Locator, Page } from 'playwright-core';
 import type { SelectorSpec } from '../manifest/schema.js';
 
 export type { SelectorSpec } from '../manifest/schema.js';
@@ -48,7 +48,7 @@ export async function resolveSelector(
  * In 'smart' mode, also treat as chained when:
  *  - selectors share a `[name="..."]` or `[data-testid="..."]` attribute literal,
  *  - one selector string is a prefix of the other (e.g. `form input` vs `form input[name=email]`).
- * Selector arrays are reduced to their first entry for comparison — the resolver
+ * Selector arrays are reduced to their first entry for comparison â€” the resolver
  * picks the first match at runtime, so first-entry equivalence is the load-bearing signal.
  */
 export function isChainedTarget(

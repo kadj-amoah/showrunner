@@ -1,4 +1,4 @@
-import { mkdir, rename } from 'node:fs/promises';
+﻿import { mkdir, rename } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import {
   chromium,
@@ -7,7 +7,7 @@ import {
   type Browser,
   type BrowserContext,
   type BrowserContextOptions,
-} from 'playwright';
+} from 'playwright-core';
 import type { RecordingConfig, VoiceoverConfig } from '../config/schema.js';
 import type { Manifest } from '../manifest/schema.js';
 import type { PipelineOverrides } from '../pipeline/types.js';
@@ -111,7 +111,7 @@ export async function recordDemo(opts: RecordOptions): Promise<SlicePlan> {
     const tFirstSegmentStart = performance.now();
     const preSegmentOffsetSec = (tFirstSegmentStart - tRecordingStart) / 1000;
     logger.info(
-      `pre-segment recording offset: ${preSegmentOffsetSec.toFixed(2)}s (page.goto + setup) — slice_plan will be offset by this amount`,
+      `pre-segment recording offset: ${preSegmentOffsetSec.toFixed(2)}s (page.goto + setup) â€” slice_plan will be offset by this amount`,
     );
     const t0 = tFirstSegmentStart;
     let cursorPos = {
@@ -204,7 +204,7 @@ export async function recordDemo(opts: RecordOptions): Promise<SlicePlan> {
               );
               if (adjusted < motionMs) {
                 warnings.push(
-                  `cursor motion for action at ${arrivalAt}s clamped from ${Math.round(motionMs)}ms to ${adjusted}ms — manifest timing tight`,
+                  `cursor motion for action at ${arrivalAt}s clamped from ${Math.round(motionMs)}ms to ${adjusted}ms â€” manifest timing tight`,
                 );
               }
               motionMs = adjusted;
@@ -258,14 +258,14 @@ export async function recordDemo(opts: RecordOptions): Promise<SlicePlan> {
         if (outcome.status === 'skipped') {
           warnings.push(`${action.type}: ${outcome.reason}`);
           if (outcome.screenshot) failureScreenshots.push(outcome.screenshot);
-          logger.warn(`segment ${seg.id} — ${action.type} skipped`, {
+          logger.warn(`segment ${seg.id} â€” ${action.type} skipped`, {
             reason: outcome.reason,
             screenshot: outcome.screenshot,
           });
         } else if (outcome.status === 'segment_failed') {
           failure = outcome.reason;
           if (outcome.screenshot) failureScreenshots.push(outcome.screenshot);
-          logger.error(`segment ${seg.id} — failed`, {
+          logger.error(`segment ${seg.id} â€” failed`, {
             reason: outcome.reason,
             screenshot: outcome.screenshot,
           });
@@ -284,7 +284,7 @@ export async function recordDemo(opts: RecordOptions): Promise<SlicePlan> {
         await page.waitForTimeout(Math.round(remaining * 1000));
       } else if (remaining < -0.5) {
         warnings.push(
-          `segment took ${elapsedInSegment.toFixed(2)}s but only ${allocated.toFixed(2)}s allocated — manifest timing tight for this segment`,
+          `segment took ${elapsedInSegment.toFixed(2)}s but only ${allocated.toFixed(2)}s allocated â€” manifest timing tight for this segment`,
         );
       }
 
@@ -324,7 +324,7 @@ export async function recordDemo(opts: RecordOptions): Promise<SlicePlan> {
       }
       recordingPath = dest;
     } else {
-      logger.warn('Recording context did not produce a video file — recordVideo may have been ignored');
+      logger.warn('Recording context did not produce a video file â€” recordVideo may have been ignored');
     }
 
     return {
@@ -369,10 +369,10 @@ export class PreflightError extends Error {
     readonly failures: { segment: string; actionIndex: number; selectors: string[] }[],
   ) {
     const lines = failures.map(
-      (f) => `  - ${f.segment}#${f.actionIndex} → [${f.selectors.join(' | ')}]`,
+      (f) => `  - ${f.segment}#${f.actionIndex} â†’ [${f.selectors.join(' | ')}]`,
     );
     super(
-      `Pre-flight check failed — ${failures.length} selector(s) did not resolve on ${
+      `Pre-flight check failed â€” ${failures.length} selector(s) did not resolve on ${
         failures[0]?.segment ? `the live target page` : 'the page'
       }:\n${lines.join('\n')}\n\nFix the manifest selectors, or set recording.preflight: false to skip this check.`,
     );
@@ -386,11 +386,11 @@ export class PreflightError extends Error {
  * only become available after intermediate navigations or clicks. Deeper
  * selectors fail at action time with the resolver's full diagnostic.
  */
-async function preflightSelectors(page: import('playwright').Page, manifest: Manifest): Promise<void> {
+async function preflightSelectors(page: import('playwright-core').Page, manifest: Manifest): Promise<void> {
   const firstSeg = manifest.segments[0];
   if (!firstSeg) return;
 
-  // Give SPAs a beat to hydrate before probing — best-effort.
+  // Give SPAs a beat to hydrate before probing â€” best-effort.
   try {
     await page.waitForLoadState('networkidle', { timeout: 3000 });
   } catch {

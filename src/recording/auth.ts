@@ -1,7 +1,7 @@
-import { readFile } from 'node:fs/promises';
+﻿import { readFile } from 'node:fs/promises';
 import { isAbsolute, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import type { Page, BrowserContextOptions } from 'playwright';
+import type { Page, BrowserContextOptions } from 'playwright-core';
 
 type StorageState = BrowserContextOptions['storageState'];
 import type { AuthConfig } from '../config/schema.js';
@@ -103,7 +103,7 @@ async function buildStorageState(
         cookiesJson.origins = [...(cookiesJson.origins ?? []), ...lsJson];
       } else {
         logger.warn(
-          `local_storage_file at ${lsAbs} is not a Playwright origins list — skipping. Use storageState() output format.`,
+          `local_storage_file at ${lsAbs} is not a Playwright origins list â€” skipping. Use storageState() output format.`,
         );
       }
     } catch (err) {
@@ -155,7 +155,7 @@ function buildFormFill(
     } catch (err) {
       const cause = err instanceof Error ? err.message : String(err);
       throw new AuthError(
-        `Form auth: did not reach ${auth.success_url_pattern} within ${auth.timeout_ms}ms — ${cause}`,
+        `Form auth: did not reach ${auth.success_url_pattern} within ${auth.timeout_ms}ms â€” ${cause}`,
       );
     }
   };

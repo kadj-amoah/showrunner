@@ -1,4 +1,4 @@
-import type { BrowserContext, Page } from 'playwright';
+﻿import type { BrowserContext, Page } from 'playwright-core';
 import type { Action } from '../manifest/schema.js';
 import { logger } from '../util/logger.js';
 import { SELECTOR_FOR_FN_SOURCE } from './selectorHeuristic.js';
@@ -104,7 +104,7 @@ const IN_PAGE_SCRIPT = `
     send('submit', el, null);
   }, true);
 
-  // Scroll capture — debounce 250ms, coalesce within window, emit direction + accumulated deltaY.
+  // Scroll capture â€” debounce 250ms, coalesce within window, emit direction + accumulated deltaY.
   let scrollLastY = window.scrollY;
   let scrollAccum = 0;
   let scrollTimer = null;
@@ -127,7 +127,7 @@ const IN_PAGE_SCRIPT = `
     const delta = currentY - scrollLastY;
     scrollLastY = currentY;
     if (delta === 0) return;
-    // Direction change → flush the previous burst immediately.
+    // Direction change â†’ flush the previous burst immediately.
     if (scrollAccum !== 0 && Math.sign(delta) !== Math.sign(scrollAccum)) {
       if (scrollTimer !== null) { clearTimeout(scrollTimer); scrollTimer = null; }
       flushScroll();
@@ -142,13 +142,13 @@ const IN_PAGE_SCRIPT = `
 `;
 
 /**
- * Stream of RecordedEvents → coalesced Action[] suitable for a manifest segment.
+ * Stream of RecordedEvents â†’ coalesced Action[] suitable for a manifest segment.
  * Rules:
  *  - Contiguous `input` events on the same selector collapse into one `type`
  *    action carrying the final value.
  *  - `keydown:Enter` after an input on the same selector becomes a `press: Enter`.
  *  - Standalone `click` events become `click` actions, unless the next event is
- *    an input on the same selector (then the click is just focus — drop it).
+ *    an input on the same selector (then the click is just focus â€” drop it).
  *  - `submit` is dropped (Enter or button-click already triggered it).
  *  - `change` on a `<select>` becomes `fill` with the value.
  */
@@ -162,7 +162,7 @@ export function coalesceEvents(events: RecordedEvent[]): Action[] {
 
     if (evt.kind === 'click') {
       // If the next event is an input on the same selector, this click was
-      // just focusing the field — drop it.
+      // just focusing the field â€” drop it.
       if (next && next.kind === 'input' && next.selector === evt.selector) {
         continue;
       }
