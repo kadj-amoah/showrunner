@@ -23,7 +23,7 @@ const program = new Command();
 program
   .name('showrunner')
   .description('Automated product demo recording & production tool')
-  .version('1.1.2')
+  .version('1.1.3')
   .option('--json', 'emit structured JSON logs to stdout')
   .option('--log-level <level>', 'log level (debug|info|warn|error)')
   .hook('preAction', (thisCmd) => {
@@ -194,37 +194,30 @@ async function printWelcome(): Promise<void> {
 
   const browserMissing = await isChromiumMissing();
 
-  const lines: string[] = ['', `Showrunner v1.1.2 — automated product-demo recording & production`, ''];
+  const lines: string[] = ['', `Showrunner v1.1.3`, ''];
 
+  // Surface one state at a time. Higher-priority states short-circuit lower ones.
   if (browserMissing) {
-    lines.push(`First-time setup: install the recording browser (one-off, ~150 MB):`);
+    lines.push(`Showrunner records using Chromium. You haven't installed it yet.`);
     lines.push(``);
-    lines.push(`  showrunner install-browser            # wraps Playwright; no "install dependencies first" warning`);
+    lines.push(`  showrunner install-browser`);
     lines.push(``);
+    lines.push(`(~150 MB, one-off. Re-run \`showrunner\` after it finishes for the next step.)`);
+  } else if (inProject) {
+    lines.push(`This is a Showrunner project (found demo.yaml).`);
+    lines.push(``);
+    lines.push(`  showrunner doctor -c demo.yaml     # check everything is wired correctly`);
+    lines.push(`  showrunner run -c demo.yaml        # then run the full pipeline`);
+    lines.push(``);
+    lines.push(`Full command list: \`showrunner --help\``);
+  } else {
+    lines.push(`No Showrunner project in this directory. To create one:`);
+    lines.push(``);
+    lines.push(`  showrunner init`);
+    lines.push(``);
+    lines.push(`\`init\` scaffolds the project and prints the next 4 commands tailored to your provider choice.`);
   }
 
-  if (inProject) {
-    lines.push(`Detected demo.yaml in this directory. Likely next:`);
-    lines.push(``);
-    lines.push(`  showrunner doctor -c demo.yaml      # preflight checks`);
-    lines.push(`  showrunner run -c demo.yaml         # run the full pipeline`);
-    lines.push(``);
-    lines.push(`Other commands: \`showrunner --help\``);
-  } else {
-    lines.push(`No demo.yaml here. To scaffold a new project:`);
-    lines.push(``);
-    lines.push(`  showrunner init --name my-demo --url http://localhost:3000`);
-    lines.push(``);
-    lines.push(`Then inside the new directory:`);
-    lines.push(``);
-    lines.push(`  cd my-demo`);
-    lines.push(`  cp .env.example .env                 # paste provider keys, or use agent_bridge (no keys)`);
-    lines.push(`  $EDITOR docs/PRD.md                  # write your product brief`);
-    lines.push(`  showrunner doctor -c demo.yaml       # preflight`);
-    lines.push(`  showrunner run -c demo.yaml          # full pipeline → output/demo_final.mp4`);
-    lines.push(``);
-    lines.push(`See all commands: \`showrunner --help\``);
-  }
   lines.push('');
   process.stdout.write(lines.join('\n'));
 }

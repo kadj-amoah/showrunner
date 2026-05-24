@@ -103,25 +103,38 @@ function printNextSteps(projectName: string, resolved: ResolvedInitOpts): void {
   lines.push(`  ${step++}. cd ${projectName}`);
 
   if (envVars.length > 0) {
-    const keysList = envVars.join(', ');
-    lines.push(`  ${step++}. cp .env.example .env       # then paste in: ${keysList}`);
+    lines.push(`  ${step++}. cp .env.example .env`);
+    lines.push(`  ${step++}. Edit .env to fill in:`);
+    for (const v of envVars) {
+      const dash = PROVIDER_DASHBOARDS[v];
+      lines.push(`       ${v}${dash ? `  (get it at ${dash})` : ''}`);
+    }
+    lines.push(
+      `     (No keys? Switch llm.default.provider to \`agent_bridge\` in demo.yaml — uses your local Claude CLI instead.)`,
+    );
   } else {
     lines.push(
-      `  ${step++}. (no .env needed — agent_bridge LLM + ${resolved.tts} TTS don't require API keys)`,
+      `  ${step++}. (.env not needed — agent_bridge LLM + ${resolved.tts} TTS don't use API keys.)`,
     );
   }
 
-  lines.push(`  ${step++}. $EDITOR docs/PRD.md          # replace the stub with your product brief`);
+  lines.push(`  ${step++}. Edit docs/PRD.md (the stub explains what each section is for).`);
   lines.push(`  ${step++}. showrunner doctor -c demo.yaml`);
-  lines.push(`  ${step++}. showrunner run -c demo.yaml  # → output/demo_final.mp4`);
+  lines.push(`  ${step++}. showrunner run -c demo.yaml   # → output/demo_final.mp4`);
   lines.push('');
   lines.push(
-    `Optional: \`showrunner understand -c demo.yaml --interactive\` if you'd rather answer five questions than write the PRD upfront.`,
+    `Don't want to write a PRD? Run \`showrunner understand -c demo.yaml --interactive\` instead — it asks 5 questions and builds the product model from your answers.`,
   );
   lines.push('');
 
   process.stdout.write(lines.join('\n'));
 }
+
+const PROVIDER_DASHBOARDS: Record<string, string> = {
+  ANTHROPIC_API_KEY: 'https://console.anthropic.com/settings/keys',
+  OPENAI_API_KEY: 'https://platform.openai.com/api-keys',
+  ELEVENLABS_API_KEY: 'https://elevenlabs.io/app/settings/api-keys',
+};
 
 function requiredEnvVars(resolved: ResolvedInitOpts): string[] {
   const vars = new Set<string>();

@@ -2,6 +2,13 @@
 
 All notable changes to Showrunner are documented here. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); the project tracks loose semver — minor bumps for new capability, patch for fixes.
 
+## [1.1.3] — 2026-05-24
+
+### Changed
+
+- Bare-command welcome rewritten. Each state (chromium missing / no project / in project) now shows one next command and one line of context, instead of a 15-line block that duplicated `init`'s footer.
+- `init` next-steps footer split conflated steps. Each required env var is listed individually with the provider's dashboard URL; the `agent_bridge` alternative is a single parenthetical at the end.
+
 ## [1.1.2] — 2026-05-24
 
 ### Fixed
@@ -96,3 +103,4 @@ A real end-to-end run against the Credstone Atlas marketing site produced `outpu
 [1.1.0]: https://github.com/kadj-amoah/showrunner/releases/tag/v1.1.0
 [1.1.1]: https://github.com/kadj-amoah/showrunner/releases/tag/v1.1.1
 [1.1.2]: https://github.com/kadj-amoah/showrunner/releases/tag/v1.1.2
+[1.1.3]: https://github.com/kadj-amoah/showrunner/releases/tag/v1.1.3
