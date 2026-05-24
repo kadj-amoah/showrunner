@@ -23,7 +23,7 @@ const program = new Command();
 program
   .name('showrunner')
   .description('Automated product demo recording & production tool')
-  .version('1.1.3')
+  .version('1.1.4')
   .option('--json', 'emit structured JSON logs to stdout')
   .option('--log-level <level>', 'log level (debug|info|warn|error)')
   .hook('preAction', (thisCmd) => {
@@ -68,11 +68,12 @@ program
 
 program
   .command('init')
-  .description('Scaffold a new Showrunner project')
+  .description('Scaffold a new Showrunner project (interactive by default; use --yes to skip prompts)')
   .option('--name <name>', 'project name', 'showrunner-demo')
   .option('--url <url>', 'target URL of the product to demo', 'http://localhost:3000')
   .option('--dir <dir>', 'parent directory in which to create the project', process.cwd())
   .option('--force', 'overwrite an existing directory', false)
+  .option('--yes', 'skip interactive prompts and use defaults / passed flags', false)
   .option(
     '--llm-provider <name>',
     'LLM provider for comprehension + script + instrument (anthropic | openai | agent_bridge)',
@@ -194,7 +195,7 @@ async function printWelcome(): Promise<void> {
 
   const browserMissing = await isChromiumMissing();
 
-  const lines: string[] = ['', `Showrunner v1.1.3`, ''];
+  const lines: string[] = ['', `Showrunner v1.1.4`, ''];
 
   // Surface one state at a time. Higher-priority states short-circuit lower ones.
   if (browserMissing) {

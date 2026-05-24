@@ -2,6 +2,19 @@
 
 All notable changes to Showrunner are documented here. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); the project tracks loose semver — minor bumps for new capability, patch for fixes.
 
+## [1.1.4] — 2026-05-24
+
+### Added
+
+- `showrunner init` is interactive by default when stdout is a TTY. The wizard detects the environment (`claude` CLI, `ffmpeg`/`ffprobe`, chromium, provider env vars), then prompts through project name, resolution, LLM provider (defaults to `agent_bridge` when `claude` is detected), inline API key paste, TTS provider, inline API key paste, target URL with a HEAD probe.
+- A real `.env` is written with the pasted keys alongside `.env.example`.
+- `--yes` flag skips prompts and uses defaults or passed flags. Automatically forced when stdout is not a TTY.
+- `@clack/prompts` dependency for the wizard UI.
+
+### Changed
+
+- `init` next-steps footer adapts to wizard state. Skips the "edit `.env`" step when keys were pasted; lists only the still-missing keys otherwise.
+
 ## [1.1.3] — 2026-05-24
 
 ### Changed
@@ -104,3 +117,4 @@ A real end-to-end run against the Credstone Atlas marketing site produced `outpu
 [1.1.1]: https://github.com/kadj-amoah/showrunner/releases/tag/v1.1.1
 [1.1.2]: https://github.com/kadj-amoah/showrunner/releases/tag/v1.1.2
 [1.1.3]: https://github.com/kadj-amoah/showrunner/releases/tag/v1.1.3
+[1.1.4]: https://github.com/kadj-amoah/showrunner/releases/tag/v1.1.4
