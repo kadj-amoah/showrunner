@@ -2,6 +2,25 @@
 
 All notable changes to Showrunner are documented here. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); the project tracks loose semver — minor bumps for new capability, patch for fixes.
 
+## [1.1.5] — 2026-05-24
+
+### Added
+
+- `showrunner set-target -c <config> --url <url>` re-probes a URL and rewrites `recording.target_url` in `demo.yaml`. `--force` skips the probe.
+- Port-scan during `init`. When the typed URL doesn't respond, probes common dev ports on `localhost` in parallel (3000, 3001, 4321, 5173, 5174, 8000, 8080) and offers responding ports as a `select`.
+- Agent-driven dev-server discovery. When the LLM provider is `agent_bridge` and `claude` is on PATH, the wizard offers to inspect the project, propose a dev-server command + URL, spawn it detached and unref'd, then poll the URL for up to 60 seconds. Reports the spawned PID.
+
+### Changed
+
+- `init`'s URL section is now a cascade: direct probe → port-scan → optional agent discovery → fallback. Each step short-circuits on success.
+- `src/setup/targetProbe.ts` is shared between `init` and `set-target`.
+
+### Known limitations
+
+- Spawned dev-server PIDs are not tracked across runs. Stop manually with `kill <pid>`.
+- `set-target` rewrites `demo.yaml` via `yaml.dump`, which strips comments.
+- Agent discovery only fires when the LLM provider is `agent_bridge`.
+
 ## [1.1.4] — 2026-05-24
 
 ### Added
@@ -118,3 +137,4 @@ A real end-to-end run against the Credstone Atlas marketing site produced `outpu
 [1.1.2]: https://github.com/kadj-amoah/showrunner/releases/tag/v1.1.2
 [1.1.3]: https://github.com/kadj-amoah/showrunner/releases/tag/v1.1.3
 [1.1.4]: https://github.com/kadj-amoah/showrunner/releases/tag/v1.1.4
+[1.1.5]: https://github.com/kadj-amoah/showrunner/releases/tag/v1.1.5

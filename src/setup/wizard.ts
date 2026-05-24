@@ -12,6 +12,9 @@ import {
 } from '@clack/prompts';
 import type { DetectedEnvironment } from './detect.js';
 import { probeUrl } from './targetProbe.js';
+import { scanLocalPorts, type ScannedTarget } from './portScan.js';
+import { discoverDevServer, type DevServerProposal } from './agentDiscover.js';
+import { spawnAndWait } from './spawnDevServer.js';
 import {
   RESOLUTION_PRESETS,
   type ResolutionPreset,
@@ -157,37 +160,15 @@ export async function runWizard(env: DetectedEnvironment): Promise<WizardResult 
     if (key.length > 0) collectedKeys['OPENAI_API_KEY'] = key;
   }
 
-  // Target URL: prompt, then probe.
-  const url = await ask(
-    text({
-      message: 'What URL is your product dev server on?',
-      placeholder: 'http://localhost:3000',
-      defaultValue: 'http://localhost:3000',
-      validate: (v) => {
-        if (!v) return undefined;
-        try {
-          new URL(v);
-          return undefined;
-        } catch {
-          return 'Must be a valid URL (e.g. http://localhost:3000).';
-        }
-      },
-    }),
-  );
-  if (url === null) return null;
-
-  const probeSpinner = spinner();
-  probeSpinner.start(`Probing ${url} ...`);
-  const probe = await probeUrl(url);
-  if (probe.reachable) {
-    probeSpinner.stop(`${url} reachable (HTTP ${probe.statusCode}, ${probe.elapsedMs}ms).`);
-  } else {
-    probeSpinner.stop(`${url} not reachable yet.`);
-    note(
-      `That's fine — you can start your dev server later. When it's up, run:\n\n  showrunner set-target -c demo.yaml --url ${url}\n\nto re-probe and update the config.`,
-      'Heads up',
-    );
-  }
+  // Target URL: full Phase B+C cascade — direct probe → port-scan suggestion →
+  // optional agent discovery → fallback to user-entered URL with warning.
+  const resolved = await resolveTargetUrl({
+    env,
+    llm,
+    projectDir: process.cwd(),
+  });
+  if (resolved === null) return null;
+  const url = resolved.url;
 
   const proceed = await ask(
     confirm({
@@ -243,4 +224,192 @@ function formatDetection(env: DetectedEnvironment): string {
   lines.push(`  OPENAI_API_KEY:     ${env.envVars.openai ? 'set' : 'unset'}`);
   lines.push(`  ELEVENLABS_API_KEY: ${env.envVars.elevenlabs ? 'set' : 'unset'}`);
   return lines.join('\n');
+}
+
+interface ResolveTargetUrlInput {
+  env: DetectedEnvironment;
+  llm: LLMProviderChoice;
+  projectDir: string;
+}
+
+interface ResolvedTarget {
+  url: string;
+  /** PID of a dev-server we spawned, if any. */
+  spawnedPid?: number;
+  /** Set when we ended up keeping the user's typed URL despite a failed probe. */
+  warnedUnreachable?: boolean;
+}
+
+/**
+ * Multi-step URL resolution. Returns null if the user cancels.
+ *
+ * Order:
+ *  1. Ask URL; probe it.
+ *  2. If unreachable, port-scan localhost; offer matches.
+ *  3. If still nothing AND llm=agent_bridge AND claude detected, offer agent discovery.
+ *  4. Fall through: keep user-typed URL with a warning.
+ */
+async function resolveTargetUrl(input: ResolveTargetUrlInput): Promise<ResolvedTarget | null> {
+  const { env, llm, projectDir } = input;
+
+  // Step 1: ask + probe.
+  const initialUrl = await ask(
+    text({
+      message: 'What URL is your product dev server on?',
+      placeholder: 'http://localhost:3000',
+      defaultValue: 'http://localhost:3000',
+      validate: (v) => {
+        if (!v) return undefined;
+        try {
+          new URL(v);
+          return undefined;
+        } catch {
+          return 'Must be a valid URL (e.g. http://localhost:3000).';
+        }
+      },
+    }),
+  );
+  if (initialUrl === null) return null;
+
+  const probeSpin = spinner();
+  probeSpin.start(`Probing ${initialUrl} ...`);
+  const directProbe = await probeUrl(initialUrl);
+  if (directProbe.reachable) {
+    probeSpin.stop(`${initialUrl} reachable (HTTP ${directProbe.statusCode}, ${directProbe.elapsedMs}ms).`);
+    return { url: initialUrl };
+  }
+  probeSpin.stop(`${initialUrl} not reachable yet.`);
+
+  // Step 2: port-scan localhost.
+  const scanSpin = spinner();
+  scanSpin.start('Scanning common dev-server ports on localhost...');
+  let scanHits: ScannedTarget[] = [];
+  try {
+    scanHits = await scanLocalPorts('localhost');
+  } catch {
+    // best-effort — ignore scan failures
+  }
+  if (scanHits.length > 0) {
+    scanSpin.stop(`Found ${scanHits.length} responding port${scanHits.length === 1 ? '' : 's'} on localhost.`);
+    const pick = await ask(
+      select<string>({
+        message: 'Use one of the running servers?',
+        options: [
+          ...scanHits.map((h) => ({
+            value: h.url,
+            label: `${h.url}  (HTTP ${h.statusCode})`,
+          })),
+          { value: '__keep__', label: `No — keep what I typed (${initialUrl})` },
+          { value: '__agent__', label: 'No — let the agent figure it out (only useful with agent_bridge + claude)' },
+        ],
+        initialValue: scanHits[0]?.url ?? '__keep__',
+      }),
+    );
+    if (pick === null) return null;
+    if (pick !== '__keep__' && pick !== '__agent__') {
+      return { url: pick };
+    }
+    if (pick === '__keep__') {
+      warnFallback(initialUrl);
+      return { url: initialUrl, warnedUnreachable: true };
+    }
+    // pick === '__agent__' falls through to step 3.
+  } else {
+    scanSpin.stop('No common dev ports responding on localhost.');
+  }
+
+  // Step 3: agent discovery (only if applicable).
+  const agentAvailable = llm === 'agent_bridge' && env.claudeCli;
+  if (!agentAvailable) {
+    if (scanHits.length === 0) {
+      // Didn't already prompt in the scan-hit branch — explicit fallback.
+      warnFallback(initialUrl);
+      return { url: initialUrl, warnedUnreachable: true };
+    }
+    return { url: initialUrl, warnedUnreachable: true };
+  }
+
+  const useAgent = await ask(
+    confirm({
+      message: 'Want me to inspect this directory with the `claude` agent and propose a dev-server command + URL?',
+      initialValue: true,
+    }),
+  );
+  if (useAgent === null) return null;
+  if (useAgent === false) {
+    warnFallback(initialUrl);
+    return { url: initialUrl, warnedUnreachable: true };
+  }
+
+  const discoverSpin = spinner();
+  discoverSpin.start('Asking the agent to read your project...');
+  let proposal: DevServerProposal;
+  try {
+    proposal = await discoverDevServer(projectDir);
+    discoverSpin.stop('Agent returned a proposal.');
+  } catch (err) {
+    discoverSpin.stop('Agent inspection failed.');
+    note(
+      `${err instanceof Error ? err.message : String(err)}\n\nKeeping your typed URL for now. Start your server, then run:\n  showrunner set-target -c demo.yaml --url ${initialUrl}`,
+      'Agent error',
+    );
+    return { url: initialUrl, warnedUnreachable: true };
+  }
+
+  note(formatProposal(proposal, projectDir), 'Agent proposal');
+
+  const spawnIt = await ask(
+    confirm({
+      message: `Spawn \`${proposal.command} ${proposal.args.join(' ')}\` in ${projectDir} and wait for ${proposal.url}?`,
+      initialValue: proposal.confidence !== 'low',
+    }),
+  );
+  if (spawnIt === null) return null;
+  if (spawnIt === false) {
+    note(
+      `OK — start the server yourself, then run:\n  showrunner set-target -c demo.yaml --url ${proposal.url}`,
+      'Skipping spawn',
+    );
+    return { url: proposal.url, warnedUnreachable: true };
+  }
+
+  const spawnSpin = spinner();
+  spawnSpin.start(`Spawning and waiting for ${proposal.url} (up to 60s)...`);
+  const spawnResult = await spawnAndWait({
+    command: proposal.command,
+    args: proposal.args,
+    url: proposal.url,
+    cwd: projectDir,
+  });
+  if (spawnResult.ok) {
+    spawnSpin.stop(`Dev server up at ${proposal.url} (pid ${spawnResult.pid}).`);
+    note(
+      `When you're done, stop it with:  kill ${spawnResult.pid}`,
+      'Server running',
+    );
+    return { url: proposal.url, spawnedPid: spawnResult.pid };
+  }
+  spawnSpin.stop(`Spawn or wait failed.`);
+  note(
+    `${spawnResult.reason ?? 'unknown error'}\n\nKeeping ${proposal.url} as the configured target. If the server eventually comes up, no action needed; otherwise run:\n  showrunner set-target -c demo.yaml --url <actual-url>`,
+    'Spawn issue',
+  );
+  return { url: proposal.url, warnedUnreachable: true };
+}
+
+function warnFallback(url: string): void {
+  note(
+    `That's fine — you can start your dev server later. When it's up, run:\n\n  showrunner set-target -c demo.yaml --url ${url}\n\nto re-probe and update the config.`,
+    'Heads up',
+  );
+}
+
+function formatProposal(p: DevServerProposal, cwd: string): string {
+  return [
+    `command:    ${p.command} ${p.args.join(' ')}`,
+    `cwd:        ${cwd}`,
+    `url:        ${p.url}`,
+    `confidence: ${p.confidence}`,
+    `rationale:  ${p.rationale}`,
+  ].join('\n');
 }
