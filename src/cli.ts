@@ -24,7 +24,7 @@ const program = new Command();
 program
   .name('showrunner')
   .description('Automated product demo recording & production tool')
-  .version('1.1.6')
+  .version('1.1.7')
   .option('--json', 'emit structured JSON logs to stdout')
   .option('--log-level <level>', 'log level (debug|info|warn|error)')
   .hook('preAction', (thisCmd) => {
@@ -127,7 +127,11 @@ program
   .option('--interactive', 'use interactive Q&A mode (5 prompts, no LLM)')
   .option(
     '--agent',
-    'delegate to the local `claude` CLI: it explores the current directory with its read tools and synthesizes the product model. Closes the type=codebase gap in demo.yaml sources.',
+    'delegate to the local `claude` CLI: it explores the project with its read tools and synthesizes the product model. Closes the type=codebase gap in demo.yaml sources.',
+  )
+  .option(
+    '--project-dir <path>',
+    'directory the --agent run should explore. Overrides project.codebase_root from demo.yaml. Defaults to configDir/.. when -c is given, or cwd otherwise.',
   )
   .option('--output <path>', 'output path for product_model.json')
   .action(understandCommand);
@@ -208,7 +212,7 @@ async function printWelcome(): Promise<void> {
 
   const browserMissing = await isChromiumMissing();
 
-  const lines: string[] = ['', `Showrunner v1.1.6`, ''];
+  const lines: string[] = ['', `Showrunner v1.1.7`, ''];
 
   // Surface one state at a time. Higher-priority states short-circuit lower ones.
   if (browserMissing) {

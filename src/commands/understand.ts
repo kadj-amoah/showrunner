@@ -16,6 +16,7 @@ export interface UnderstandOpts {
   config?: string;
   interactive?: boolean;
   agent?: boolean;
+  projectDir?: string;
   output?: string;
 }
 
@@ -29,6 +30,7 @@ export async function understandCommand(opts: UnderstandOpts): Promise<void> {
   let outputRel = opts.output ?? './product_model.json';
   let sources: { path: string; type: string }[] = [];
   let llmConfig: import('../config/schema.js').LLMConfig | undefined;
+  let loadedCodebaseRoot: string | undefined;
 
   if (opts.config) {
     let loaded;
@@ -48,6 +50,7 @@ export async function understandCommand(opts: UnderstandOpts): Promise<void> {
     }
     sources = loaded.config.comprehension.sources.map((s) => ({ path: s.path, type: s.type }));
     llmConfig = loaded.config.llm;
+    loadedCodebaseRoot = loaded.config.project.codebase_root;
 
     const envFile = resolve(loaded.configDir, '.env');
     try {
@@ -63,8 +66,19 @@ export async function understandCommand(opts: UnderstandOpts): Promise<void> {
   let productModel;
   try {
     if (opts.agent) {
-      const projectDir = process.cwd();
-      logger.info('Generating product_model via local `claude` agent', { projectDir });
+      const projectDir = resolveAgentProjectDir({
+        flagOverride: opts.projectDir,
+        codebaseRoot: opts.config ? loadedCodebaseRoot : undefined,
+        configDir: opts.config ? configDir : undefined,
+      });
+      logger.info('Generating product_model via local `claude` agent', {
+        projectDir,
+        source: resolveAgentProjectDirSource({
+          flagOverride: opts.projectDir,
+          codebaseRoot: opts.config ? loadedCodebaseRoot : undefined,
+          configDir: opts.config ? configDir : undefined,
+        }),
+      });
       productModel = await generateProductModelViaAgent({ projectDir });
     } else if (opts.interactive) {
       const answers = await runInteractiveQA();
@@ -110,4 +124,36 @@ export async function understandCommand(opts: UnderstandOpts): Promise<void> {
 
   await writeFile(outputPath, JSON.stringify(productModel, null, 2) + '\n', 'utf8');
   logger.info('Wrote product_model.json', { path: outputPath });
+}
+
+interface AgentDirInput {
+  flagOverride: string | undefined;
+  codebaseRoot: string | undefined;
+  configDir: string | undefined;
+}
+
+function resolveAgentProjectDir(input: AgentDirInput): string {
+  if (input.flagOverride) {
+    return isAbsolute(input.flagOverride)
+      ? input.flagOverride
+      : resolve(process.cwd(), input.flagOverride);
+  }
+  if (input.codebaseRoot && input.configDir) {
+    return isAbsolute(input.codebaseRoot)
+      ? input.codebaseRoot
+      : resolve(input.configDir, input.codebaseRoot);
+  }
+  if (input.configDir) {
+    // No explicit anchor — the canonical scaffold sits inside or beside the
+    // product, so parent-of-configDir is a sensible default.
+    return resolve(input.configDir, '..');
+  }
+  return process.cwd();
+}
+
+function resolveAgentProjectDirSource(input: AgentDirInput): string {
+  if (input.flagOverride) return '--project-dir flag';
+  if (input.codebaseRoot && input.configDir) return 'project.codebase_root in demo.yaml';
+  if (input.configDir) return 'configDir/..  (default; set project.codebase_root to override)';
+  return 'cwd (no -c flag)';
 }

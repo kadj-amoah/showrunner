@@ -2,6 +2,24 @@
 
 All notable changes to Showrunner are documented here. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); the project tracks loose semver — minor bumps for new capability, patch for fixes.
 
+## [1.1.7] — 2026-05-24
+
+### Fixed
+
+- `understand --agent` was spawning `claude` with cwd = `process.cwd()`, which is typically the scaffold directory rather than the product codebase. The agent had nothing useful to read and timed out.
+
+### Added
+
+- `--project-dir <path>` flag on `showrunner understand` for explicit per-invocation override.
+- `project.codebase_root` field on the config schema, resolved relative to the config's directory.
+- Resolution order when `--agent` is set: `--project-dir` flag, then `project.codebase_root`, then `configDir/..` (when `-c` is given), then `process.cwd()`. The resolved path is logged alongside the rule that selected it.
+- Scaffolded `demo.yaml` writes `codebase_root: ..` by default.
+
+### Changed
+
+- Claude spawn passes `--allowedTools "Read,Glob,Grep"` explicitly.
+- Agent timeout reduced from 180s to 90s.
+
 ## [1.1.6] — 2026-05-24
 
 ### Added
@@ -153,3 +171,4 @@ A real end-to-end run against the Credstone Atlas marketing site produced `outpu
 [1.1.4]: https://github.com/kadj-amoah/showrunner/releases/tag/v1.1.4
 [1.1.5]: https://github.com/kadj-amoah/showrunner/releases/tag/v1.1.5
 [1.1.6]: https://github.com/kadj-amoah/showrunner/releases/tag/v1.1.6
+[1.1.7]: https://github.com/kadj-amoah/showrunner/releases/tag/v1.1.7

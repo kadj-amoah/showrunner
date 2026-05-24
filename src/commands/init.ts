@@ -247,6 +247,11 @@ function demoYamlTemplate(opts: ResolvedInitOpts): string {
 project:
   name: ${opts.name}
   # product_model: ./product_model.json   # uncomment to skip comprehension
+  # Where the product codebase lives, relative to this demo.yaml. Used by
+  # \`showrunner understand --agent\` to anchor the agent's exploration.
+  # Default \`..\` matches the canonical layout where the Showrunner scaffold
+  # sits inside (or beside) the product directory.
+  codebase_root: ..
 
 comprehension:
   mode: documents

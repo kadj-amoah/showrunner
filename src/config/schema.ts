@@ -3,6 +3,13 @@ import { z } from 'zod';
 const projectSchema = z.object({
   name: z.string().min(1),
   product_model: z.string().optional(),
+  /**
+   * Path to the product's codebase, resolved relative to demo.yaml's directory.
+   * Used by `understand --agent` to anchor the agent's exploration.
+   * Defaults to `..` because the canonical scaffold layout places the
+   * Showrunner project inside or beside the product directory.
+   */
+  codebase_root: z.string().optional(),
 });
 
 const comprehensionSourceSchema = z.object({

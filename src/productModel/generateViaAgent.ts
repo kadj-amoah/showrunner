@@ -53,8 +53,17 @@ export async function generateProductModelViaAgent(
   const provider = new AgentBridgeLLMProvider({
     mode: 'spawn',
     command: opts.command ?? 'claude',
-    args: opts.args ?? ['-p', '--output-format', 'json'],
-    timeoutMs: opts.timeoutMs ?? 180_000,
+    args: opts.args ?? [
+      '-p',
+      '--output-format',
+      'json',
+      // Explicitly allow read-only filesystem tools so claude doesn't stall on
+      // permission ambiguity in headless mode. Comma-separated per claude CLI syntax.
+      '--allowedTools',
+      'Read,Glob,Grep',
+    ],
+    // 90s cap — was 180s in v1.1.6, dropped here because failures should fail fast.
+    timeoutMs: opts.timeoutMs ?? 90_000,
     cwd: opts.projectDir,
   });
 
