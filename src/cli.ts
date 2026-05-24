@@ -3,6 +3,7 @@ import { Command, Option } from 'commander';
 import { logger } from './util/logger.js';
 import { runCommand } from './commands/run.js';
 import { initCommand } from './commands/init.js';
+import { installBrowserCommand } from './commands/installBrowser.js';
 import { validateCommand } from './commands/validate.js';
 import { doctorCommand } from './commands/doctor.js';
 import { printVoCommand } from './commands/printVo.js';
@@ -22,7 +23,7 @@ const program = new Command();
 program
   .name('showrunner')
   .description('Automated product demo recording & production tool')
-  .version('1.1.1')
+  .version('1.1.2')
   .option('--json', 'emit structured JSON logs to stdout')
   .option('--log-level <level>', 'log level (debug|info|warn|error)')
   .hook('preAction', (thisCmd) => {
@@ -88,6 +89,12 @@ program
     'standard',
   )
   .action(initCommand);
+
+program
+  .command('install-browser')
+  .description('Install the Playwright browser binary (chromium by default) — wraps playwright-core install')
+  .option('--browser <name>', 'browser to install: chromium | firefox | webkit', 'chromium')
+  .action(installBrowserCommand);
 
 program
   .command('doctor')
@@ -185,7 +192,17 @@ async function printWelcome(): Promise<void> {
     // not in a Showrunner project root
   }
 
-  const lines: string[] = ['', `Showrunner v1.1.1 — automated product-demo recording & production`, ''];
+  const browserMissing = await isChromiumMissing();
+
+  const lines: string[] = ['', `Showrunner v1.1.2 — automated product-demo recording & production`, ''];
+
+  if (browserMissing) {
+    lines.push(`First-time setup: install the recording browser (one-off, ~150 MB):`);
+    lines.push(``);
+    lines.push(`  showrunner install-browser            # wraps Playwright; no "install dependencies first" warning`);
+    lines.push(``);
+  }
+
   if (inProject) {
     lines.push(`Detected demo.yaml in this directory. Likely next:`);
     lines.push(``);
@@ -210,6 +227,18 @@ async function printWelcome(): Promise<void> {
   }
   lines.push('');
   process.stdout.write(lines.join('\n'));
+}
+
+async function isChromiumMissing(): Promise<boolean> {
+  try {
+    const { chromium } = await import('playwright-core');
+    const exec = chromium.executablePath();
+    const { stat } = await import('node:fs/promises');
+    await stat(exec);
+    return false;
+  } catch {
+    return true;
+  }
 }
 
 function parseStages(value: string): StageName[] {

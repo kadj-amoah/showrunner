@@ -2,6 +2,17 @@
 
 All notable changes to Showrunner are documented here. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); the project tracks loose semver — minor bumps for new capability, patch for fixes.
 
+## [1.1.2] — 2026-05-24
+
+### Fixed
+
+- `showrunner --version` crashed on fresh global install with `ERR_MODULE_NOT_FOUND` for `@babel/parser`. The babel runtime dependencies (`@babel/parser`, `@babel/traverse`, `@babel/types`) used by the `instrument` stage were in `devDependencies` and therefore absent from the published tarball. Moved to `dependencies`. `@types/babel__traverse` stays in `devDependencies` (type-only).
+
+### Added
+
+- `showrunner install-browser` subcommand. Wraps the bundled `playwright-core` CLI directly, sidestepping the "install your dependencies first" warning that bare `npx playwright install` emits when invoked outside a Node project.
+- Welcome detects missing chromium and surfaces an `install-browser` hint.
+
 ## [1.1.1] — 2026-05-24
 
 ### Changed
@@ -84,3 +95,4 @@ A real end-to-end run against the Credstone Atlas marketing site produced `outpu
 
 [1.1.0]: https://github.com/kadj-amoah/showrunner/releases/tag/v1.1.0
 [1.1.1]: https://github.com/kadj-amoah/showrunner/releases/tag/v1.1.1
+[1.1.2]: https://github.com/kadj-amoah/showrunner/releases/tag/v1.1.2
