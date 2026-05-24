@@ -6,6 +6,7 @@ import {
   generateProductModelFromInteractive,
   ProductModelGenerationError,
 } from '../productModel/generate.js';
+import { generateProductModelViaAgent } from '../productModel/generateViaAgent.js';
 import { runInteractiveQA } from '../productModel/interactive.js';
 import type { DocSource } from '../productModel/prompts.js';
 import { resolveDefaultLLMProvider } from '../providers/llm/resolveFromContext.js';
@@ -14,10 +15,16 @@ import { logger } from '../util/logger.js';
 export interface UnderstandOpts {
   config?: string;
   interactive?: boolean;
+  agent?: boolean;
   output?: string;
 }
 
 export async function understandCommand(opts: UnderstandOpts): Promise<void> {
+  if (opts.interactive && opts.agent) {
+    logger.error('--interactive and --agent are mutually exclusive. Pick one.');
+    process.exit(2);
+  }
+
   let configDir = process.cwd();
   let outputRel = opts.output ?? './product_model.json';
   let sources: { path: string; type: string }[] = [];
@@ -54,17 +61,21 @@ export async function understandCommand(opts: UnderstandOpts): Promise<void> {
   await mkdir(dirname(outputPath), { recursive: true });
 
   let productModel;
-  const provider = resolveDefaultLLMProvider({ configDir, llm: llmConfig });
   try {
-    if (opts.interactive) {
+    if (opts.agent) {
+      const projectDir = process.cwd();
+      logger.info('Generating product_model via local `claude` agent', { projectDir });
+      productModel = await generateProductModelViaAgent({ projectDir });
+    } else if (opts.interactive) {
       const answers = await runInteractiveQA();
       logger.info('Generating product_model from interactive answers');
+      const provider = resolveDefaultLLMProvider({ configDir, llm: llmConfig });
       productModel = await generateProductModelFromInteractive({ answers, provider });
     } else {
       if (sources.length === 0) {
         logger.error(
           'No `comprehension.sources` configured in demo.yaml. Add at least one source ' +
-            '(prd, readme, codebase, etc.) or re-run with --interactive.',
+            '(prd, readme, codebase, etc.), re-run with --interactive (Q&A), or re-run with --agent (the local `claude` CLI explores your repo).',
         );
         process.exit(2);
       }
@@ -86,6 +97,7 @@ export async function understandCommand(opts: UnderstandOpts): Promise<void> {
       logger.info('Generating product_model from documents', {
         sources: docs.map((d) => d.path),
       });
+      const provider = resolveDefaultLLMProvider({ configDir, llm: llmConfig });
       productModel = await generateProductModelFromDocs({ sources: docs, provider });
     }
   } catch (err) {

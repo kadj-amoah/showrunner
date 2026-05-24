@@ -24,7 +24,7 @@ const program = new Command();
 program
   .name('showrunner')
   .description('Automated product demo recording & production tool')
-  .version('1.1.5')
+  .version('1.1.6')
   .option('--json', 'emit structured JSON logs to stdout')
   .option('--log-level <level>', 'log level (debug|info|warn|error)')
   .hook('preAction', (thisCmd) => {
@@ -122,9 +122,13 @@ program
 
 program
   .command('understand')
-  .description('Build product_model.json from documents or interactive Q&A')
+  .description('Build product_model.json from documents, interactive Q&A, or agent-driven repo exploration')
   .option('-c, --config <path>', 'path to demo.yaml')
-  .option('--interactive', 'use interactive Q&A mode')
+  .option('--interactive', 'use interactive Q&A mode (5 prompts, no LLM)')
+  .option(
+    '--agent',
+    'delegate to the local `claude` CLI: it explores the current directory with its read tools and synthesizes the product model. Closes the type=codebase gap in demo.yaml sources.',
+  )
   .option('--output <path>', 'output path for product_model.json')
   .action(understandCommand);
 
@@ -204,7 +208,7 @@ async function printWelcome(): Promise<void> {
 
   const browserMissing = await isChromiumMissing();
 
-  const lines: string[] = ['', `Showrunner v1.1.5`, ''];
+  const lines: string[] = ['', `Showrunner v1.1.6`, ''];
 
   // Surface one state at a time. Higher-priority states short-circuit lower ones.
   if (browserMissing) {

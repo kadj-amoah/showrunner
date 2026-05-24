@@ -2,6 +2,20 @@
 
 All notable changes to Showrunner are documented here. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); the project tracks loose semver — minor bumps for new capability, patch for fixes.
 
+## [1.1.6] — 2026-05-24
+
+### Added
+
+- `showrunner understand --agent` delegates project exploration to the local `claude` CLI. Spawns `claude -p --output-format json`; the agent uses its native Read/Glob/Grep tools to walk the project and synthesise `product_model.json` matching the existing Zod schema. Mutually exclusive with `--interactive`. Errors if `claude` is missing from PATH.
+
+### Changed
+
+- Error message for empty `comprehension.sources` now names all three options: add a source, `--interactive`, or `--agent`.
+
+### Known limitations
+
+- `type: codebase` entries in `comprehension.sources` remain non-functional in the non-`--agent` path. Directories are silently skipped and `include` / `exclude` globs are ignored. Wiring real codebase support to the document path remains future work.
+
 ## [1.1.5] — 2026-05-24
 
 ### Added
@@ -138,3 +152,4 @@ A real end-to-end run against the Credstone Atlas marketing site produced `outpu
 [1.1.3]: https://github.com/kadj-amoah/showrunner/releases/tag/v1.1.3
 [1.1.4]: https://github.com/kadj-amoah/showrunner/releases/tag/v1.1.4
 [1.1.5]: https://github.com/kadj-amoah/showrunner/releases/tag/v1.1.5
+[1.1.6]: https://github.com/kadj-amoah/showrunner/releases/tag/v1.1.6
