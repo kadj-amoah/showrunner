@@ -24,7 +24,7 @@ const program = new Command();
 program
   .name('showrunner')
   .description('Automated product demo recording & production tool')
-  .version('1.1.7')
+  .version('1.1.8')
   .option('--json', 'emit structured JSON logs to stdout')
   .option('--log-level <level>', 'log level (debug|info|warn|error)')
   .hook('preAction', (thisCmd) => {
@@ -213,7 +213,7 @@ async function printWelcome(): Promise<void> {
   const missing = await detectMissingPrereqs();
   const anyMissing = missing.ffmpeg || missing.ffprobe || missing.chromium;
 
-  const lines: string[] = ['', `Showrunner v1.1.7`, ''];
+  const lines: string[] = ['', `Showrunner v1.1.8`, ''];
 
   // First-time setup short-circuits everything else — without these tools,
   // doctor/init/run can't do anything useful.

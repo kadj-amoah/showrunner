@@ -2,6 +2,18 @@
 
 All notable changes to Showrunner are documented here. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); the project tracks loose semver — minor bumps for new capability, patch for fixes.
 
+## [1.1.8] — 2026-05-24
+
+### Added
+
+- Bare-command welcome detects missing `ffmpeg` and `ffprobe` alongside `chromium`. Lists per-OS install hints (apt / pacman / dnf / brew / winget).
+- Init wizard prints the resolved cwd and gates further prompts behind an explicit confirm before scaffolding.
+
+### Docs
+
+- README first-demo section leads with `cd <product-root>` and explains why running `init` from a non-product directory breaks the scaffold's defaults.
+- New "After installing: run the doctor first" section pointing at the system-only `showrunner doctor` pass.
+
 ## [1.1.7] — 2026-05-24
 
 ### Fixed
@@ -172,3 +184,4 @@ A real end-to-end run against the Credstone Atlas marketing site produced `outpu
 [1.1.5]: https://github.com/kadj-amoah/showrunner/releases/tag/v1.1.5
 [1.1.6]: https://github.com/kadj-amoah/showrunner/releases/tag/v1.1.6
 [1.1.7]: https://github.com/kadj-amoah/showrunner/releases/tag/v1.1.7
+[1.1.8]: https://github.com/kadj-amoah/showrunner/releases/tag/v1.1.8
