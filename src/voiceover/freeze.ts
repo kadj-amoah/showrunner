@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { readFile, writeFile } from 'node:fs/promises';
 
 export interface MasterFreezeInput {
   /** The full post-normalization master script. */
@@ -47,4 +48,19 @@ export interface ReuseDecision {
 /** Reuse the frozen master only when nothing forces a rebuild, both artifacts exist, and the key matches. */
 export function shouldReuseMaster(d: ReuseDecision): boolean {
   return !d.forced && d.audioExists && d.alignmentExists && d.savedKey === d.currentKey;
+}
+
+/** Read the saved freeze key from its sidecar; null if absent or unreadable. */
+export async function readMasterFreezeKey(path: string): Promise<string | null> {
+  try {
+    const parsed = JSON.parse(await readFile(path, 'utf8')) as { key?: unknown };
+    return typeof parsed.key === 'string' ? parsed.key : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Persist the freeze key alongside the master audio/alignment. */
+export async function writeMasterFreezeKey(path: string, key: string): Promise<void> {
+  await writeFile(path, `${JSON.stringify({ key }, null, 2)}\n`, 'utf8');
 }

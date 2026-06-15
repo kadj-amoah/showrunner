@@ -19,6 +19,12 @@ import {
 } from '../voiceover/fullVo.js';
 import { normalizeSegments, type NormalizationDiff } from '../voiceover/normalize.js';
 import {
+  masterFreezeKey,
+  readMasterFreezeKey,
+  shouldReuseMaster,
+  writeMasterFreezeKey,
+} from '../voiceover/freeze.js';
+import {
   resolveAlignmentStrategy,
   resolveElevenLabsConfigOrNull,
   resolveTTSProvider,
@@ -123,10 +129,23 @@ export const voiceoverStage: Stage = {
       });
     }
 
-    // 1. Synthesize the master VO (one TTS call), or reuse cache.
-    const masterCached =
-      (await fileExists(master.rawAudio)) && (await fileExists(master.alignment));
-    if (forced || !masterCached) {
+    // 1. Synthesize the master VO (one TTS call), or reuse a frozen take.
+    //    The freeze key is a causal hash over the spoken master text + voice
+    //    config; an edit that changes the spoken output busts it automatically,
+    //    so callers no longer need --force to pick up script changes.
+    const fullText = buildFullScript(voSegments);
+    const freezeKey = masterFreezeKey({
+      text: fullText,
+      voiceConfig: ctx.config.voiceover.provider,
+    });
+    const reuse = shouldReuseMaster({
+      forced,
+      audioExists: await fileExists(master.rawAudio),
+      alignmentExists: await fileExists(master.alignment),
+      savedKey: await readMasterFreezeKey(master.freeze),
+      currentKey: freezeKey,
+    });
+    if (!reuse) {
       logger.event({
         stage: 'voiceover',
         status: 'synthesizing_master',
@@ -134,7 +153,6 @@ export const voiceoverStage: Stage = {
         segments: manifest.segments.length,
       });
       try {
-        const fullText = buildFullScript(voSegments);
         const result = await provider.synthesize({ text: fullText });
         if (!result.alignment) {
           // provider.supportsAlignment said true but didn't return any — surface as error.
@@ -145,6 +163,7 @@ export const voiceoverStage: Stage = {
         }
         await writeFile(master.rawAudio, result.audio);
         await writeMasterAlignment(master.alignment, result.alignment);
+        await writeMasterFreezeKey(master.freeze, freezeKey);
         logger.event({
           stage: 'voiceover',
           status: 'master_written',

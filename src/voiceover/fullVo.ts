@@ -301,11 +301,13 @@ export async function writeMasterAlignment(
 export interface MasterPaths {
   rawAudio: string;
   alignment: string;
+  freeze: string;
 }
 
 export function masterPaths(audioDir: string, alignmentDir: string): MasterPaths {
   return {
     rawAudio: join(audioDir, '_master.raw.mp3'),
     alignment: join(alignmentDir, '_master.alignment.json'),
+    freeze: join(audioDir, '_master.freeze.json'),
   };
 }
