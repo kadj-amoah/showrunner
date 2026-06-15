@@ -1,5 +1,14 @@
 type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
+type EventListener = (e: Record<string, unknown>) => void;
+const eventListeners = new Set<EventListener>();
+
+/** Subscribe to all `logger.event(...)` calls. Returns an unsubscribe function. */
+export function onEvent(listener: EventListener): () => void {
+  eventListeners.add(listener);
+  return () => { eventListeners.delete(listener); };
+}
+
 const LEVEL_ORDER: Record<LogLevel, number> = {
   debug: 10,
   info: 20,
@@ -57,6 +66,10 @@ export const logger = {
     emit('error', message, fields);
   },
   event(payload: Record<string, unknown>): void {
+    // Notify all registered subscribers first (used by SSE and other listeners).
+    for (const listener of eventListeners) {
+      listener(payload);
+    }
     if (state.json) {
       process.stdout.write(JSON.stringify({ ...payload, ts: new Date().toISOString() }) + '\n');
     } else if (shouldLog('info')) {
