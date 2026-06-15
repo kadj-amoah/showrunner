@@ -11,4 +11,9 @@ describe('normalize', () => {
     const result = normalize('Press Ctrl+Z.');
     expect(result.diffs).toContainEqual({ from: 'Ctrl+Z', to: 'Control Z', rule: 'keyboard-shortcut' });
   });
+
+  it('spaces an all-caps acronym for letter-by-letter reading', () => {
+    const result = normalize('Open the API settings.');
+    expect(result.text).toBe('Open the A P I settings.');
+  });
 });
