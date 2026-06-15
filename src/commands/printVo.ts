@@ -2,6 +2,7 @@ import { resolve } from 'node:path';
 import { loadConfig, ConfigError } from '../config/loader.js';
 import { readManifest, ManifestError } from '../manifest/io.js';
 import { renderVoScript } from '../manifest/voScript.js';
+import { loadVoiceoverSummary, formatQaSummary } from '../voiceover/qaSummary.js';
 import { logger } from '../util/logger.js';
 
 interface PrintVoOpts {
@@ -34,4 +35,12 @@ export async function printVoCommand(opts: PrintVoOpts): Promise<void> {
 
   const text = renderVoScript(manifest, { projectName: loaded.config.project.name });
   process.stdout.write(text);
+
+  // Surface the last synthesis's QA verdict so the human pick is informed.
+  const summaryPath = resolve(loaded.configDir, loaded.config.voiceover.output_dir, 'voiceover_summary.json');
+  const summary = await loadVoiceoverSummary(summaryPath);
+  if (summary) {
+    const qa = formatQaSummary(summary);
+    if (qa) logger.info(`\n--- QA (from last synthesis) ---\n${qa}`);
+  }
 }

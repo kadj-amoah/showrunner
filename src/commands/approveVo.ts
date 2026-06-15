@@ -4,6 +4,7 @@ import { loadConfig, ConfigError } from '../config/loader.js';
 import { readManifest, writeManifest, ManifestError } from '../manifest/io.js';
 import { readAndMergeVoScript, VoScriptMergeError } from '../manifest/voScript.js';
 import { logger } from '../util/logger.js';
+import { loadVoiceoverSummary, formatQaSummary } from '../voiceover/qaSummary.js';
 
 interface ApproveVoOpts {
   config: string;
@@ -58,6 +59,14 @@ export async function approveVoCommand(opts: ApproveVoOpts): Promise<void> {
   }
 
   logger.info('VO edits merged into manifest. Resume with `showrunner run --config <path>`.');
+
+  // If a prior synthesis left a QA verdict, surface it to inform the next pass.
+  const summaryPath = resolve(loaded.configDir, loaded.config.voiceover.output_dir, 'voiceover_summary.json');
+  const summary = await loadVoiceoverSummary(summaryPath);
+  if (summary) {
+    const qa = formatQaSummary(summary);
+    if (qa) logger.info(`Last synthesis QA:\n${qa}`);
+  }
 }
 
 async function pathExists(p: string): Promise<boolean> {
