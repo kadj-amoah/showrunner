@@ -10,6 +10,11 @@ export interface NormalizationResult {
 }
 
 export function normalize(text: string): NormalizationResult {
-  const out = text.replace(/Ctrl\+([A-Za-z])/g, 'Control $1');
-  return { text: out, diffs: [] };
+  const diffs: NormalizationDiff[] = [];
+  const out = text.replace(/Ctrl\+([A-Za-z])/g, (match, key) => {
+    const to = `Control ${key}`;
+    diffs.push({ from: match, to, rule: 'keyboard-shortcut' });
+    return to;
+  });
+  return { text: out, diffs };
 }
