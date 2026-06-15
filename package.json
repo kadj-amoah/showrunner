@@ -38,6 +38,7 @@
     "templates",
     "scripts",
     "assets",
+    "studio-web/dist",
     "README.md",
     "CHANGELOG.md",
     "LICENSE"

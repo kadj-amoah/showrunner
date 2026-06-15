@@ -13,6 +13,7 @@ import { rerunSegmentCommand } from './commands/rerunSegment.js';
 import { captureAuthCommand } from './commands/captureAuth.js';
 import { traceCommand } from './commands/trace.js';
 import { previewCommand } from './commands/preview.js';
+import { studioCommand } from './commands/studio.js';
 import { understandCommand } from './commands/understand.js';
 import { instrumentCommand } from './commands/instrument.js';
 import { recordActionsCommand } from './commands/recordActions.js';
@@ -108,9 +109,15 @@ program
 
 program
   .command('doctor')
-  .description('Run preflight checks on the current config + environment')
-  .requiredOption('-c, --config <path>', 'path to demo.yaml')
+  .description(
+    'Run preflight checks. Without -c: system-prereq pass only (ffmpeg / ffprobe / chromium). With -c: full pass including provider keys, target URL, scripts.',
+  )
+  .option('-c, --config <path>', 'path to demo.yaml — switches doctor into full-pass mode')
   .option('--json', 'emit results as JSON instead of human-readable rows')
+  .option(
+    '--fix',
+    'on each fixable FAIL, prompt to run a remediation (e.g. install missing ffmpeg / chromium) and re-check',
+  )
   .action(doctorCommand);
 
 program
@@ -157,6 +164,12 @@ program
   .description('Preview the generated Playwright script in UI Mode')
   .requiredOption('-c, --config <path>', 'path to demo.yaml')
   .action(previewCommand);
+
+program
+  .command('studio')
+  .description('Launch the Showrunner Studio (web testbench)')
+  .option('--port <port>', 'preferred port', '4321')
+  .action(studioCommand);
 
 program
   .command('trace')
