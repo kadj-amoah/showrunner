@@ -117,6 +117,12 @@ const normalizationSchema = z
   })
   .default({});
 
+const gateSchema = z
+  .object({
+    policy: z.enum(['warn', 'fail']).default('warn'),
+  })
+  .default({});
+
 const elevenLabsTTSSchema = z.object({
   name: z.literal('elevenlabs'),
   voice_id: z.string().min(1),
@@ -164,6 +170,7 @@ const voiceoverSchema = z.object({
   post_process: postProcessSchema,
   pause_placement: pausePlacementSchema,
   normalization: normalizationSchema,
+  gate: gateSchema,
 });
 
 const anthropicLLMSchema = z.object({

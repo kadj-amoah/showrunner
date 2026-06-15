@@ -50,7 +50,8 @@ function makeFakeProvider(): { provider: TTSProvider; calls: string[] } {
     supportsAlignment: true,
     async synthesize(req) {
       calls.push(req.text);
-      const chars = req.text.split('');
+      // EL consumes SSML break tags — they don't appear in the spoken alignment.
+      const chars = req.text.replace(/<break[^>]*\/>/g, '').split('');
       return {
         audio: Buffer.from('FAKE-AUDIO'),
         alignment: {
@@ -66,11 +67,15 @@ function makeFakeProvider(): { provider: TTSProvider; calls: string[] } {
   return { provider, calls };
 }
 
-function makeCtx(projectDir: string, provider: TTSProvider): PipelineContext {
+function makeCtx(
+  projectDir: string,
+  provider: TTSProvider,
+  voiceoverOverrides: Record<string, unknown> = {},
+): PipelineContext {
   const config = showrunnerConfigSchema.parse({
     project: { name: 'FreezeTest' },
     recording: { target_url: 'https://example.com' },
-    voiceover: { provider: { name: 'elevenlabs', voice_id: 'v1' } },
+    voiceover: { provider: { name: 'elevenlabs', voice_id: 'v1' }, ...voiceoverOverrides },
   });
   return {
     config,
@@ -121,6 +126,13 @@ describe('voiceover stage — normalization + freeze wiring', () => {
     const manifest = JSON.parse(await readFile(join(projectDir, 'scripts', 'manifest.json'), 'utf8'));
     expect(manifest.segments[0].vo_line).toBe('Press Ctrl+Z to undo.');
     expect(manifest.segments[1].vo_line).toBe('It costs $0/month.');
+
+    // The QA gate passed (alignment matches, nothing leaked) and is recorded.
+    const summary = JSON.parse(
+      await readFile(join(projectDir, 'segments', 'audio', 'voiceover_summary.json'), 'utf8'),
+    );
+    expect(summary.gate.ok).toBe(true);
+    expect(summary.normalization.substitutions).toBe(3);
   });
 
   it('reuses the frozen master on an unchanged re-run, and re-synthesizes after a script edit', async () => {
@@ -140,5 +152,14 @@ describe('voiceover stage — normalization + freeze wiring', () => {
 
     await voiceoverStage.run(makeCtx(projectDir, provider));
     expect(calls).toHaveLength(2);
+  });
+
+  it('halts when gate policy is "fail" and a token leaks (normalization disabled)', async () => {
+    const { provider } = makeFakeProvider();
+    const result = await voiceoverStage.run(
+      makeCtx(projectDir, provider, { normalization: { enabled: false }, gate: { policy: 'fail' } }),
+    );
+    expect(result.halt).toBe(true);
+    expect(result.reason).toMatch(/gate failed/);
   });
 });

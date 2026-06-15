@@ -24,6 +24,7 @@ import {
   shouldReuseMaster,
   writeMasterFreezeKey,
 } from '../voiceover/freeze.js';
+import { runGate, stripBreakTags, type GateVerdict } from '../voiceover/gate.js';
 import {
   resolveAlignmentStrategy,
   resolveElevenLabsConfigOrNull,
@@ -190,6 +191,25 @@ export const voiceoverStage: Stage = {
     if (!alignment) {
       throw new Error(`voiceover stage: failed to load master alignment at ${master.alignment}`);
     }
+
+    // QA gate: refute the take (alignment + normalization-leak) before slicing.
+    const gateVerdict: GateVerdict = runGate(stripBreakTags(fullText), alignment.characters);
+    logger.event({
+      stage: 'voiceover',
+      status: gateVerdict.ok ? 'gate_passed' : 'gate_flagged',
+      issues: gateVerdict.issues,
+    });
+    if (!gateVerdict.ok && ctx.config.voiceover.gate.policy === 'fail') {
+      return {
+        stage: 'voiceover',
+        skipped: false,
+        halt: true,
+        reason: `voiceover QA gate failed (policy=fail): ${gateVerdict.issues.join('; ')}`,
+        durationMs: Date.now() - start,
+        warnings: [...stageWarnings, ...gateVerdict.issues],
+      };
+    }
+
     let windows: SegmentWindow[];
     try {
       windows = locateSegmentWindows(voSegments, alignment);
@@ -268,6 +288,7 @@ export const voiceoverStage: Stage = {
             substitutions: normalizationDiffs.length,
             diffs: normalizationDiffs,
           },
+          gate: gateVerdict,
           master_audio: master.rawAudio,
           master_alignment: master.alignment,
           segments: artifacts,
