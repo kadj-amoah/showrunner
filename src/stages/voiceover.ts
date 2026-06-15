@@ -18,6 +18,9 @@ import {
   type SliceBoundary,
 } from '../voiceover/fullVo.js';
 import { normalizeSegments, type NormalizationDiff } from '../voiceover/normalize.js';
+import { detectOov, loadDefaultCommonWords } from '../voiceover/oov.js';
+import { phonemizeTokens } from '../voiceover/g2p.js';
+import { phonemizeSegments } from '../voiceover/phonemize.js';
 import {
   masterFreezeKey,
   readMasterFreezeKey,
@@ -91,7 +94,7 @@ export const voiceoverStage: Stage = {
     // Transient normalization: produce the spoken text used for synthesis AND
     // alignment-window matching, while the manifest's vo_line stays
     // human-readable. Diffs are logged to the voiceover summary.
-    const { segments: voSegments, diffs: normalizationDiffs } = normalizeSegments(
+    let { segments: voSegments, diffs: normalizationDiffs } = normalizeSegments(
       manifest.segments,
       ctx.config.voiceover.normalization.enabled,
     );
@@ -101,6 +104,23 @@ export const voiceoverStage: Stage = {
         status: 'normalized',
         substitutions: normalizationDiffs.length,
       });
+    }
+
+    // G2P phonemization pass: for eleven_v3 with g2p.enabled, detect OOV tokens
+    // and inline IPA pronunciations so the model renders them correctly.
+    let phonemes: Record<string, string> = {};
+    const g2pCfg = ctx.config.voiceover.g2p;
+    const isV3 = ctx.config.voiceover.provider.name === 'elevenlabs'
+      && ctx.config.voiceover.provider.model === 'eleven_v3';
+    if (g2pCfg.enabled && isV3) {
+      const common = await loadDefaultCommonWords();
+      const tokens = [...new Set(voSegments.flatMap((s) => detectOov(s.vo_line, common)))];
+      phonemes = await phonemizeTokens(tokens, {
+        python: g2pCfg.python,
+        scriptPath: resolve(process.cwd(), g2pCfg.script_path),
+      });
+      voSegments = phonemizeSegments(voSegments, phonemes);
+      logger.event({ stage: 'voiceover', status: 'phonemized', tokens: Object.keys(phonemes).length });
     }
 
     // Provider doesn't return alignment AND user requires it → fail fast.
@@ -314,6 +334,7 @@ export const voiceoverStage: Stage = {
           },
           gate: gateVerdict,
           naturalness,
+          phonemes,
           freeze: { key: freezeKey, reused: reuse },
           master_audio: master.rawAudio,
           master_alignment: master.alignment,

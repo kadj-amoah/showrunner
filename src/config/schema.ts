@@ -132,6 +132,14 @@ const naturalnessSchema = z
   })
   .default({});
 
+const g2pSchema = z
+  .object({
+    enabled: z.boolean().default(false),
+    python: z.string().default('python'),
+    script_path: z.string().default('scripts/g2p.py'),
+  })
+  .default({});
+
 const elevenLabsTTSSchema = z.object({
   name: z.literal('elevenlabs'),
   voice_id: z.string().min(1),
@@ -181,6 +189,7 @@ const voiceoverSchema = z.object({
   normalization: normalizationSchema,
   gate: gateSchema,
   naturalness: naturalnessSchema,
+  g2p: g2pSchema,
 });
 
 const anthropicLLMSchema = z.object({

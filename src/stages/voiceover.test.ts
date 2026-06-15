@@ -18,6 +18,11 @@ vi.mock('../voiceover/naturalness.js', async (importOriginal) => ({
   scoreNaturalness: vi.fn(async () => naturalnessMock.score),
 }));
 
+vi.mock('../voiceover/g2p.js', async (orig) => ({
+  ...(await orig<typeof import('../voiceover/g2p.js')>()),
+  phonemizeTokens: vi.fn(async () => ({ Zorptang: 'ˈzɔːptæŋ' })),
+}));
+
 import { voiceoverStage } from './voiceover.js';
 import { showrunnerConfigSchema } from '../config/schema.js';
 import type { PipelineContext } from '../pipeline/types.js';
@@ -187,5 +192,23 @@ describe('voiceover stage — normalization + freeze wiring', () => {
     expect(summary.naturalness.available).toBe(true);
     expect(summary.naturalness.score).toBe(1.5);
     expect(summary.naturalness.belowFloor).toBe(true);
+  });
+
+  it('injects IPA phonemes for OOV tokens when g2p is enabled and provider is eleven_v3', async () => {
+    const manifest = makeManifest();
+    manifest.segments[0]!.vo_line = 'Open Zorptang now.';
+    await writeManifestFile(projectDir, manifest);
+
+    const { provider, calls } = makeFakeProvider();
+    const result = await voiceoverStage.run(
+      makeCtx(projectDir, provider, {
+        provider: { name: 'elevenlabs', voice_id: 'v1', model: 'eleven_v3' },
+        g2p: { enabled: true },
+      }),
+    );
+
+    expect(result.skipped).toBeFalsy();
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toMatch(/ˈzɔːptæŋ/);
   });
 });

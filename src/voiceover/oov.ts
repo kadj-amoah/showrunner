@@ -1,4 +1,5 @@
 import { readFile } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
 
 /** Tokens are alphabetic runs (letters + internal apostrophes). Numbers/symbols
  *  are normalization's job, not G2P's. */
@@ -18,4 +19,12 @@ export function detectOov(text: string, common: ReadonlySet<string>): string[] {
 export async function loadCommonWords(path: string): Promise<Set<string>> {
   const raw = await readFile(path, 'utf8');
   return new Set(raw.split(/\r?\n/).map((w) => w.trim().toLowerCase()).filter((w) => w.length > 0));
+}
+
+export function defaultCommonWordsPath(): string {
+  return fileURLToPath(new URL('./data/common-words.txt', import.meta.url));
+}
+
+export async function loadDefaultCommonWords(): Promise<Set<string>> {
+  return loadCommonWords(defaultCommonWordsPath());
 }
