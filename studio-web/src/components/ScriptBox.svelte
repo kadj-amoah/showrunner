@@ -4,7 +4,7 @@
   let { onsubmit, loading = false }: { onsubmit: (p: SynthesizePayload) => void; loading?: boolean } = $props();
 
   let script = $state('Press Ctrl+Z to undo.\n\nThe plan starts at $0/month — no card required.');
-  let voiceId = $state('');
+  let voiceId = $state('EXAVITQu4vr4xnSDxMaL'); // Sarah — shared ElevenLabs voice
   let model = $state<'eleven_multilingual_v2' | 'eleven_v3'>('eleven_multilingual_v2');
   let normalize = $state(true);
   let gatePolicy = $state<'warn' | 'fail'>('warn');

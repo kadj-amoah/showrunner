@@ -1,4 +1,5 @@
 import * as net from 'node:net';
+import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { logger } from '../util/logger.js';
 import { createStudioServer } from '../studio/server.js';
@@ -40,6 +41,17 @@ function findFreePort(startPort: number): Promise<number> {
  * is distributed alongside the package.
  */
 export async function studioCommand(opts: StudioOpts): Promise<void> {
+  // Auto-load a local .env (e.g. ELEVENLABS_API_KEY) so the testbench runs with
+  // zero manual env setup. Best-effort: a missing/old-Node/malformed .env is fine.
+  const envPath = join(process.cwd(), '.env');
+  if (existsSync(envPath)) {
+    try {
+      process.loadEnvFile(envPath);
+    } catch {
+      /* env may be provided another way */
+    }
+  }
+
   // NOTE: cwd-relative paths assume the command is run from the repo root.
   const runsRoot = join(process.cwd(), 'studio', '.runs');
   const staticDir = join(process.cwd(), 'studio-web', 'dist');
