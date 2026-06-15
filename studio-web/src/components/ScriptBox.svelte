@@ -9,13 +9,14 @@
   let normalize = $state(true);
   let gatePolicy = $state<'warn' | 'fail'>('warn');
   let naturalness = $state(false);
+  let g2p = $state(false); // grapheme-to-phoneme pass (eleven_v3 only)
 
   const charCount = $derived(script.length);
   const canRun = $derived(script.trim().length > 0 && voiceId.trim().length > 0 && !loading);
 
   function run() {
     if (!canRun) return;
-    onsubmit({ script, voiceId: voiceId.trim(), model, normalize, gatePolicy, naturalness });
+    onsubmit({ script, voiceId: voiceId.trim(), model, normalize, gatePolicy, naturalness, g2p });
   }
 </script>
 
@@ -58,6 +59,9 @@
         </button>
         <button class="sw" class:on={naturalness} onclick={() => (naturalness = !naturalness)}>
           <span class="led" class:on={naturalness}></span> MOS
+        </button>
+        <button class="sw" class:on={g2p} onclick={() => (g2p = !g2p)} title="Grapheme-to-phoneme: eleven_v3 only">
+          <span class="led" class:on={g2p}></span> G2P
         </button>
       </div>
     </div>

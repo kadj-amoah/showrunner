@@ -113,14 +113,19 @@ export const voiceoverStage: Stage = {
     const isV3 = ctx.config.voiceover.provider.name === 'elevenlabs'
       && ctx.config.voiceover.provider.model === 'eleven_v3';
     if (g2pCfg.enabled && isV3) {
-      const common = await loadDefaultCommonWords();
-      const tokens = [...new Set(voSegments.flatMap((s) => detectOov(s.vo_line, common)))];
-      phonemes = await phonemizeTokens(tokens, {
-        python: g2pCfg.python,
-        scriptPath: resolve(process.cwd(), g2pCfg.script_path),
-      });
-      voSegments = phonemizeSegments(voSegments, phonemes);
-      logger.event({ stage: 'voiceover', status: 'phonemized', tokens: Object.keys(phonemes).length });
+      // G2P is best-effort: a missing word list or sidecar must never break the run.
+      try {
+        const common = await loadDefaultCommonWords();
+        const tokens = [...new Set(voSegments.flatMap((s) => detectOov(s.vo_line, common)))];
+        phonemes = await phonemizeTokens(tokens, {
+          python: g2pCfg.python,
+          scriptPath: resolve(process.cwd(), g2pCfg.script_path),
+        });
+        voSegments = phonemizeSegments(voSegments, phonemes);
+        logger.event({ stage: 'voiceover', status: 'phonemized', tokens: Object.keys(phonemes).length });
+      } catch (err) {
+        logger.warn(`voiceover: G2P pass skipped (${err instanceof Error ? err.message : String(err)})`);
+      }
     }
 
     // Provider doesn't return alignment AND user requires it → fail fast.

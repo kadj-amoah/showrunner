@@ -14,6 +14,7 @@ export interface AdHocInput {
   normalize?: boolean;
   gatePolicy?: 'warn' | 'fail';
   naturalness?: boolean;
+  g2p?: boolean;
 }
 export interface AdHocOptions {
   runsRoot: string;
@@ -43,6 +44,7 @@ export async function runAdHocSynthesis(input: AdHocInput, opts: AdHocOptions): 
       normalization: { enabled: input.normalize ?? true },
       gate: { policy: input.gatePolicy ?? 'warn' },
       naturalness: { enabled: input.naturalness ?? false },
+      g2p: { enabled: input.g2p ?? false },
     },
   });
 

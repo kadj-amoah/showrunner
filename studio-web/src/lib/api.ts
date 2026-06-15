@@ -5,6 +5,7 @@ export interface SynthesizePayload {
   normalize: boolean;
   gatePolicy: 'warn' | 'fail';
   naturalness: boolean;
+  g2p: boolean;
 }
 
 export interface NormalizationDiff {
