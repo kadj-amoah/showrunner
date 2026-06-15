@@ -141,6 +141,8 @@ describe('voiceover stage — normalization + freeze wiring', () => {
     );
     expect(summary.gate.ok).toBe(true);
     expect(summary.normalization.substitutions).toBe(3);
+    expect(summary.freeze.reused).toBe(false);
+    expect(typeof summary.freeze.key).toBe('string');
   });
 
   it('reuses the frozen master on an unchanged re-run, and re-synthesizes after a script edit', async () => {

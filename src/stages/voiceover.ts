@@ -314,6 +314,7 @@ export const voiceoverStage: Stage = {
           },
           gate: gateVerdict,
           naturalness,
+          freeze: { key: freezeKey, reused: reuse },
           master_audio: master.rawAudio,
           master_alignment: master.alignment,
           segments: artifacts,
