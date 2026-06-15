@@ -15,6 +15,9 @@ export interface ElevenLabsProviderConfig {
   style: number;
   useSpeakerBoost: boolean;
   speed: number;
+  pronunciationDictionaryId?: string;
+  pronunciationDictionaryVersionId?: string;
+  applyTextNormalization?: 'auto' | 'on' | 'off';
 }
 
 export class ElevenLabsTTSProvider implements TTSProvider {
@@ -43,6 +46,9 @@ export class ElevenLabsTTSProvider implements TTSProvider {
         speed: req.speed ?? this.cfg.speed,
       },
       apiKey: this.cfg.apiKey,
+      pronunciationDictionaryId: this.cfg.pronunciationDictionaryId,
+      pronunciationDictionaryVersionId: this.cfg.pronunciationDictionaryVersionId,
+      applyTextNormalization: this.cfg.applyTextNormalization,
     });
     return {
       audio: result.audio,

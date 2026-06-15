@@ -17,6 +17,12 @@ export interface SynthesisRequest {
   text: string;
   voiceSettings: VoiceSettings;
   apiKey: string;
+  /** ElevenLabs pronunciation-dictionary id (uploaded once, recorded in config). */
+  pronunciationDictionaryId?: string;
+  /** Version id pinning a specific dictionary revision. */
+  pronunciationDictionaryVersionId?: string;
+  /** EL's own text normalization. Default 'off' — our pre-pass owns it. */
+  applyTextNormalization?: 'auto' | 'on' | 'off';
 }
 
 export interface WithTimestampsResponse {
@@ -46,15 +52,37 @@ export class ElevenLabsError extends Error {
   }
 }
 
-const MAX_ATTEMPTS = 3;
-
-export async function synthesizeWithTimestamps(req: SynthesisRequest): Promise<SynthesisResult> {
-  const url = `${BASE_URL}/v1/text-to-speech/${encodeURIComponent(req.voiceId)}/with-timestamps`;
-  const body = {
+/**
+ * Build the POST body for a TTS request, attaching the pronunciation-dictionary
+ * locator and text-normalization mode only when configured.
+ */
+export function buildSynthesisBody(req: SynthesisRequest): Record<string, unknown> {
+  const body: Record<string, unknown> = {
     text: req.text,
     model_id: req.modelId,
     voice_settings: req.voiceSettings,
   };
+  if (req.applyTextNormalization) {
+    body.apply_text_normalization = req.applyTextNormalization;
+  }
+  if (req.pronunciationDictionaryId) {
+    body.pronunciation_dictionary_locators = [
+      {
+        pronunciation_dictionary_id: req.pronunciationDictionaryId,
+        ...(req.pronunciationDictionaryVersionId
+          ? { version_id: req.pronunciationDictionaryVersionId }
+          : {}),
+      },
+    ];
+  }
+  return body;
+}
+
+const MAX_ATTEMPTS = 3;
+
+export async function synthesizeWithTimestamps(req: SynthesisRequest): Promise<SynthesisResult> {
+  const url = `${BASE_URL}/v1/text-to-speech/${encodeURIComponent(req.voiceId)}/with-timestamps`;
+  const body = buildSynthesisBody(req);
 
   const responseJson = await postWithRetry(url, body, req.apiKey, 'json');
   const parsed = responseJson as WithTimestampsResponse;
@@ -84,11 +112,7 @@ export async function synthesizeWithTimestamps(req: SynthesisRequest): Promise<S
 
 export async function synthesizeBasic(req: SynthesisRequest): Promise<Omit<SynthesisResult, 'durationSeconds'>> {
   const url = `${BASE_URL}/v1/text-to-speech/${encodeURIComponent(req.voiceId)}`;
-  const body = {
-    text: req.text,
-    model_id: req.modelId,
-    voice_settings: req.voiceSettings,
-  };
+  const body = buildSynthesisBody(req);
 
   const audio = (await postWithRetry(url, body, req.apiKey, 'binary')) as Buffer;
   return {

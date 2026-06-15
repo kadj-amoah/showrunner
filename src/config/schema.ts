@@ -128,6 +128,9 @@ const elevenLabsTTSSchema = z.object({
   style: z.number().min(0).max(1).default(0.0),
   use_speaker_boost: z.boolean().default(true),
   speed: z.number().min(0.85).max(1.15).default(1.0),
+  pronunciation_dictionary_id: z.string().optional(),
+  pronunciation_dictionary_version_id: z.string().optional(),
+  apply_text_normalization: z.enum(['auto', 'on', 'off']).default('off'),
 });
 
 const openaiTTSSchema = z.object({

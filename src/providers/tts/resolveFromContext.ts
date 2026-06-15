@@ -60,6 +60,9 @@ function configToSpec(cfg: TTSProviderConfig): TTSProviderSpec {
         style: cfg.style,
         use_speaker_boost: cfg.use_speaker_boost,
         speed: cfg.speed,
+        pronunciation_dictionary_id: cfg.pronunciation_dictionary_id,
+        pronunciation_dictionary_version_id: cfg.pronunciation_dictionary_version_id,
+        apply_text_normalization: cfg.apply_text_normalization,
       };
     case 'openai':
       return {

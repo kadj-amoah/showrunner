@@ -15,6 +15,9 @@ export interface ElevenLabsTTSSpec {
   style: number;
   use_speaker_boost: boolean;
   speed: number;
+  pronunciation_dictionary_id?: string;
+  pronunciation_dictionary_version_id?: string;
+  apply_text_normalization?: 'auto' | 'on' | 'off';
 }
 
 export interface OpenAITTSSpec {
@@ -56,6 +59,9 @@ export function createTTSProvider(spec: TTSProviderSpec, ctx: CreateTTSContext):
         style: spec.style,
         useSpeakerBoost: spec.use_speaker_boost,
         speed: spec.speed,
+        pronunciationDictionaryId: spec.pronunciation_dictionary_id,
+        pronunciationDictionaryVersionId: spec.pronunciation_dictionary_version_id,
+        applyTextNormalization: spec.apply_text_normalization,
       });
     }
     case 'openai': {
