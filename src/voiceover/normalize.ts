@@ -1,3 +1,5 @@
+import { numberToWords } from './numberToWords.js';
+
 export interface NormalizationDiff {
   from: string;
   to: string;
@@ -22,6 +24,21 @@ const RULES: Rule[] = [
     name: 'keyboard-shortcut',
     pattern: /Ctrl\+([A-Za-z])/g,
     replace: (_match, key) => `Control ${key}`,
+  },
+  {
+    name: 'currency-cedis',
+    pattern: /GH[¢₵]\s?([\d,]+)/g,
+    replace: (_match, amount) => `${numberToWords(parseInt(amount.replace(/,/g, ''), 10))} cedis`,
+  },
+  {
+    name: 'currency-dollars',
+    pattern: /\$([\d,]+)/g,
+    replace: (_match, amount) => `${numberToWords(parseInt(amount.replace(/,/g, ''), 10))} dollars`,
+  },
+  {
+    name: 'per-period',
+    pattern: /\/(month|year|week|day)\b/g,
+    replace: (_match, period) => ` per ${period}`,
   },
   {
     name: 'acronym',
