@@ -123,6 +123,15 @@ const gateSchema = z
   })
   .default({});
 
+const naturalnessSchema = z
+  .object({
+    enabled: z.boolean().default(false),
+    floor: z.number().optional(),
+    python: z.string().default('python'),
+    script_path: z.string().default('scripts/utmos_score.py'),
+  })
+  .default({});
+
 const elevenLabsTTSSchema = z.object({
   name: z.literal('elevenlabs'),
   voice_id: z.string().min(1),
@@ -171,6 +180,7 @@ const voiceoverSchema = z.object({
   pause_placement: pausePlacementSchema,
   normalization: normalizationSchema,
   gate: gateSchema,
+  naturalness: naturalnessSchema,
 });
 
 const anthropicLLMSchema = z.object({

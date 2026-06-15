@@ -36,6 +36,8 @@
   "files": [
     "dist",
     "templates",
+    "scripts",
+    "assets",
     "README.md",
     "CHANGELOG.md",
     "LICENSE"

@@ -25,6 +25,7 @@ import {
   writeMasterFreezeKey,
 } from '../voiceover/freeze.js';
 import { runGate, stripBreakTags, type GateVerdict } from '../voiceover/gate.js';
+import { scoreNaturalness, naturalnessVerdict, type NaturalnessVerdict } from '../voiceover/naturalness.js';
 import {
   resolveAlignmentStrategy,
   resolveElevenLabsConfigOrNull,
@@ -210,6 +211,29 @@ export const voiceoverStage: Stage = {
       };
     }
 
+    // Naturalness floor (advisory in v1 — records a MOS, never halts).
+    let naturalness: NaturalnessVerdict = naturalnessVerdict(
+      null,
+      ctx.config.voiceover.naturalness.floor ?? null,
+    );
+    if (ctx.config.voiceover.naturalness.enabled) {
+      const score = await scoreNaturalness(master.rawAudio, {
+        python: ctx.config.voiceover.naturalness.python,
+        scriptPath: resolve(ctx.configDir, ctx.config.voiceover.naturalness.script_path),
+      });
+      naturalness = naturalnessVerdict(score, ctx.config.voiceover.naturalness.floor ?? null);
+      logger.event({
+        stage: 'voiceover',
+        status: !naturalness.available
+          ? 'naturalness_unavailable'
+          : naturalness.belowFloor
+            ? 'naturalness_below_floor'
+            : 'naturalness_scored',
+        score: naturalness.score,
+        floor: naturalness.floor,
+      });
+    }
+
     let windows: SegmentWindow[];
     try {
       windows = locateSegmentWindows(voSegments, alignment);
@@ -289,6 +313,7 @@ export const voiceoverStage: Stage = {
             diffs: normalizationDiffs,
           },
           gate: gateVerdict,
+          naturalness,
           master_audio: master.rawAudio,
           master_alignment: master.alignment,
           segments: artifacts,

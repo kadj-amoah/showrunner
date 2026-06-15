@@ -10,6 +10,14 @@ vi.mock('../voiceover/ffmpeg.js', () => ({
   runFfmpeg: vi.fn(async () => {}),
 }));
 
+// Keep the real pure helpers (parseUtmosScore/naturalnessVerdict); stub only the
+// sidecar call so the stage doesn't spawn Python in tests.
+const naturalnessMock = vi.hoisted(() => ({ score: null as number | null }));
+vi.mock('../voiceover/naturalness.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../voiceover/naturalness.js')>()),
+  scoreNaturalness: vi.fn(async () => naturalnessMock.score),
+}));
+
 import { voiceoverStage } from './voiceover.js';
 import { showrunnerConfigSchema } from '../config/schema.js';
 import type { PipelineContext } from '../pipeline/types.js';
@@ -161,5 +169,21 @@ describe('voiceover stage — normalization + freeze wiring', () => {
     );
     expect(result.halt).toBe(true);
     expect(result.reason).toMatch(/gate failed/);
+  });
+
+  it('records a below-floor naturalness score (advisory) without halting', async () => {
+    naturalnessMock.score = 1.5;
+    const { provider } = makeFakeProvider();
+    const result = await voiceoverStage.run(
+      makeCtx(projectDir, provider, { naturalness: { enabled: true, floor: 2.0 } }),
+    );
+    expect(result.halt).toBeFalsy();
+
+    const summary = JSON.parse(
+      await readFile(join(projectDir, 'segments', 'audio', 'voiceover_summary.json'), 'utf8'),
+    );
+    expect(summary.naturalness.available).toBe(true);
+    expect(summary.naturalness.score).toBe(1.5);
+    expect(summary.naturalness.belowFloor).toBe(true);
   });
 });
