@@ -18,6 +18,7 @@ export interface VoiceoverSummary {
   freeze: { key: string; reused: boolean };
   gate: { ok: boolean; issues: string[] };
   naturalness: { available: boolean; score: number | null; floor: number | null; belowFloor: boolean };
+  phonemes?: Record<string, string>;
 }
 
 export interface SynthesizeResponse {

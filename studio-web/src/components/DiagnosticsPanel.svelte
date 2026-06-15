@@ -6,6 +6,7 @@
   const n = $derived(summary.normalization);
   const g = $derived(summary.gate);
   const nat = $derived(summary.naturalness);
+  const phon = $derived(Object.entries(summary.phonemes ?? {}));
   const mosPct = $derived(nat.score != null ? Math.max(0, Math.min(100, (nat.score / 5) * 100)) : 0);
 </script>
 
@@ -22,6 +23,20 @@
     <ul class="diffs">
       {#each n.diffs as d}
         <li><span class="from">{d.from}</span><span class="arrow">→</span><span class="to">{d.to}</span><span class="rule">{d.rule}</span></li>
+      {/each}
+    </ul>
+  {/if}
+
+  <!-- Phonemized (G2P → IPA) -->
+  {#if phon.length}
+    <div class="row">
+      <span class="led on"></span>
+      <span class="rlabel">Phonemized</span>
+      <span class="rval">{phon.length}</span>
+    </div>
+    <ul class="diffs">
+      {#each phon as [token, ipa]}
+        <li><span class="to">{token}</span><span class="arrow">→</span><span class="to">/{ipa}/</span><span class="rule">g2p</span></li>
       {/each}
     </ul>
   {/if}
