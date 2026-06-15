@@ -24,4 +24,11 @@ describe('normalize', () => {
   ])('normalizes currency %s → %s', (input, expected) => {
     expect(normalize(input).text).toBe(expected);
   });
+
+  it.each([
+    ['v2.5', 'version two point five'],
+    ['Now on v2.55.', 'Now on version two point five five.'],
+  ])('normalizes a version string %s → %s', (input, expected) => {
+    expect(normalize(input).text).toBe(expected);
+  });
 });

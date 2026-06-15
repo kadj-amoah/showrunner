@@ -41,6 +41,17 @@ const RULES: Rule[] = [
     replace: (_match, period) => ` per ${period}`,
   },
   {
+    name: 'version',
+    pattern: /\bv(\d+)\.(\d+)\b/g,
+    replace: (_match, major, minor) => {
+      const minorWords = minor
+        .split('')
+        .map((d: string) => numberToWords(parseInt(d, 10)))
+        .join(' ');
+      return `version ${numberToWords(parseInt(major, 10))} point ${minorWords}`;
+    },
+  },
+  {
     name: 'acronym',
     pattern: /\b[A-Z]{2,}\b/g,
     replace: (match) => match.split('').join(' '),
