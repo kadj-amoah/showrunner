@@ -111,6 +111,12 @@ const pausePlacementSchema = z
   })
   .default({});
 
+const normalizationSchema = z
+  .object({
+    enabled: z.boolean().default(true),
+  })
+  .default({});
+
 const elevenLabsTTSSchema = z.object({
   name: z.literal('elevenlabs'),
   voice_id: z.string().min(1),
@@ -154,6 +160,7 @@ const voiceoverSchema = z.object({
   tail_padding_ms: z.number().int().nonnegative().default(500),
   post_process: postProcessSchema,
   pause_placement: pausePlacementSchema,
+  normalization: normalizationSchema,
 });
 
 const anthropicLLMSchema = z.object({

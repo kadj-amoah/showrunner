@@ -17,6 +17,7 @@ import {
   type SegmentWindow,
   type SliceBoundary,
 } from '../voiceover/fullVo.js';
+import { normalizeSegments, type NormalizationDiff } from '../voiceover/normalize.js';
 import {
   resolveAlignmentStrategy,
   resolveElevenLabsConfigOrNull,
@@ -79,6 +80,21 @@ export const voiceoverStage: Stage = {
     const alignmentStrategy = resolveAlignmentStrategy(ctx);
     const provider = resolveTTSProvider(ctx);
 
+    // Transient normalization: produce the spoken text used for synthesis AND
+    // alignment-window matching, while the manifest's vo_line stays
+    // human-readable. Diffs are logged to the voiceover summary.
+    const { segments: voSegments, diffs: normalizationDiffs } = normalizeSegments(
+      manifest.segments,
+      ctx.config.voiceover.normalization.enabled,
+    );
+    if (normalizationDiffs.length > 0) {
+      logger.event({
+        stage: 'voiceover',
+        status: 'normalized',
+        substitutions: normalizationDiffs.length,
+      });
+    }
+
     // Provider doesn't return alignment AND user requires it → fail fast.
     if (!provider.supportsAlignment && alignmentStrategy === 'required') {
       throw new Error(
@@ -102,6 +118,8 @@ export const voiceoverStage: Stage = {
         start,
         manifestPath,
         voSpeed,
+        voSegments,
+        normalizationDiffs,
       });
     }
 
@@ -116,7 +134,7 @@ export const voiceoverStage: Stage = {
         segments: manifest.segments.length,
       });
       try {
-        const fullText = buildFullScript(manifest.segments);
+        const fullText = buildFullScript(voSegments);
         const result = await provider.synthesize({ text: fullText });
         if (!result.alignment) {
           // provider.supportsAlignment said true but didn't return any — surface as error.
@@ -155,7 +173,7 @@ export const voiceoverStage: Stage = {
     }
     let windows: SegmentWindow[];
     try {
-      windows = locateSegmentWindows(manifest.segments, alignment);
+      windows = locateSegmentWindows(voSegments, alignment);
     } catch (err) {
       const cause = err instanceof Error ? err.message : String(err);
       throw new Error(`voiceover stage: ${cause}`);
@@ -226,6 +244,11 @@ export const voiceoverStage: Stage = {
           mode: 'full',
           characters_synthesized: totalCharacters,
           tail_padding_ms: vo.tail_padding_ms,
+          normalization: {
+            enabled: ctx.config.voiceover.normalization.enabled,
+            substitutions: normalizationDiffs.length,
+            diffs: normalizationDiffs,
+          },
           master_audio: master.rawAudio,
           master_alignment: master.alignment,
           segments: artifacts,
@@ -377,6 +400,8 @@ interface BestEffortPathInput {
   start: number;
   manifestPath: string;
   voSpeed: number;
+  voSegments: Segment[];
+  normalizationDiffs: NormalizationDiff[];
 }
 
 /**
@@ -386,7 +411,7 @@ interface BestEffortPathInput {
  * action timing degrades to action.at (handled in record.ts:resolveAtForAction).
  */
 async function runBestEffortPath(input: BestEffortPathInput): Promise<StageResult> {
-  const { ctx, manifest, provider, audioDir, tailPaddingSec, forced, start, manifestPath, voSpeed } = input;
+  const { ctx, manifest, provider, audioDir, tailPaddingSec, forced, start, manifestPath, voSpeed, voSegments, normalizationDiffs } = input;
   void ctx;
   const stageWarnings: string[] = [
     `alignment_strategy=best_effort: provider '${provider.name}' produces no alignment — captions will be whole-segment cues and at_word will degrade to at-time`,
@@ -396,7 +421,7 @@ async function runBestEffortPath(input: BestEffortPathInput): Promise<StageResul
   const artifacts: SegmentArtifact[] = [];
   let totalCharacters = 0;
 
-  for (const segment of manifest.segments) {
+  for (const segment of voSegments) {
     const finalPath = join(audioDir, `${segment.id}.mp3`);
     if ((await fileExists(finalPath)) && !forced) {
       const existingDuration = await ffprobeDuration(finalPath).catch(
@@ -465,6 +490,11 @@ async function runBestEffortPath(input: BestEffortPathInput): Promise<StageResul
         provider: provider.name,
         alignment_available: false,
         characters_synthesized: totalCharacters,
+        normalization: {
+          enabled: input.ctx.config.voiceover.normalization.enabled,
+          substitutions: normalizationDiffs.length,
+          diffs: normalizationDiffs,
+        },
         segments: artifacts,
       },
       null,
