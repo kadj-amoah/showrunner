@@ -16,7 +16,7 @@ export function manifestFromScript(script: string): Manifest {
     end: (i + 1) * SEG,
     vo_line,
     actions: [{ type: 'idle', at: 0 }],
-    transition: i === 0 ? 'fade_in' : 'none',
+    transition: i === 0 ? 'fade_in' : 'cut',
   }));
   return {
     total_duration_seconds: paragraphs.length * SEG,

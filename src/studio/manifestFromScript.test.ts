@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { manifestFromScript } from './manifestFromScript.js';
+import { segmentSchema } from '../manifest/schema.js';
 
 describe('manifestFromScript', () => {
   it('makes one segment per blank-line-separated paragraph', () => {
@@ -17,5 +18,12 @@ describe('manifestFromScript', () => {
 
   it('throws on empty input', () => {
     expect(() => manifestFromScript('   ')).toThrow();
+  });
+
+  it('produces schema-valid segments for multi-paragraph input', () => {
+    const m = manifestFromScript('First paragraph.\n\nSecond paragraph.');
+    for (const seg of m.segments) {
+      expect(() => segmentSchema.parse(seg)).not.toThrow();
+    }
   });
 });
