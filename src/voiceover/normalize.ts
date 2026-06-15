@@ -72,3 +72,25 @@ export function normalize(text: string): NormalizationResult {
   }
   return { text: out, diffs };
 }
+
+/**
+ * Transient normalization for a list of segments: returns copies whose
+ * `vo_line` is the spoken (normalized) text, plus the aggregated diff log.
+ * The originals are never mutated — the manifest stays human-readable, and the
+ * spoken text is what gets synthesized, hashed (freeze key), and matched
+ * against the returned alignment. When `enabled` is false, segments pass
+ * through untouched.
+ */
+export function normalizeSegments<T extends { vo_line: string }>(
+  segments: T[],
+  enabled: boolean,
+): { segments: T[]; diffs: NormalizationDiff[] } {
+  if (!enabled) return { segments, diffs: [] };
+  const diffs: NormalizationDiff[] = [];
+  const out = segments.map((segment) => {
+    const result = normalize(segment.vo_line);
+    diffs.push(...result.diffs);
+    return { ...segment, vo_line: result.text };
+  });
+  return { segments: out, diffs };
+}
