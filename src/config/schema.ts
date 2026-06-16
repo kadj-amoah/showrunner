@@ -137,6 +137,10 @@ const g2pSchema = z
     enabled: z.boolean().default(false),
     python: z.string().default('python'),
     script_path: z.string().default('scripts/g2p.py'),
+    proxy_language: z.string().default('sw'),
+    resolver_enabled: z.boolean().default(false),
+    confidence_threshold: z.number().min(0).max(1).default(0.75),
+    lexicon_path: z.string().default('lexicon.json'),
   })
   .default({});
 
