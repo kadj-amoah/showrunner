@@ -13,6 +13,7 @@ vi.mock('./g2p.js', async (orig) => ({
 }));
 
 import { pronounce } from './pronounce.js';
+import { phonemizeByLanguage } from './g2p.js';
 
 const fakeLLM = (impl: (opts: any) => Promise<any>) => ({ generateStructured: vi.fn(impl) });
 
@@ -71,5 +72,14 @@ describe('pronounce', () => {
     const out = await pronounce([{ vo_line: 'Open Eduwaka now.' }], 'Open Eduwaka now.', cfg(), llm as any);
     expect(out.segments[0]!.vo_line).toBe('Open /IPA_Eduwaka/ now.');
     expect(out.held).toEqual([]);
+  });
+
+  it('does not freeze a name as none when the sidecar returns no IPA (retries next run)', async () => {
+    vi.mocked(phonemizeByLanguage).mockResolvedValueOnce({});
+    const out = await pronounce([{ vo_line: 'Hello Akua.' }], 'Hello Akua.', cfg({ resolverEnabled: false }), null);
+    expect(out.segments[0]!.vo_line).toBe('Hello Akua.'); // unchanged — no IPA injected
+    expect(out.held).toEqual([]);
+    const lex = JSON.parse(await readFile(join(dir, 'lexicon.json'), 'utf8'));
+    expect(lex.Akua).toBeUndefined(); // not frozen → will retry next run
   });
 });

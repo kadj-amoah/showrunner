@@ -116,7 +116,7 @@ export const voiceoverStage: Stage = {
     if (g2pCfg.enabled && isV3) {
       try {
         const llm = g2pCfg.resolver_enabled ? resolveDefaultLLMProvider(ctx) : null;
-        const scriptContext = manifest.segments.map((s) => s.vo_line).join('\n\n');
+        const scriptContext = voSegments.map((s) => s.vo_line).join('\n\n');
         pron = await pronounce(
           voSegments,
           scriptContext,

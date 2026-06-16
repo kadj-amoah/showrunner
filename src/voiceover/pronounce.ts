@@ -100,9 +100,12 @@ export async function pronounce<T extends { vo_line: string }>(
         render = { type: 'letters', value: spellLetters(t) };
       }
     } else {
-      const proxy = cls === 'african_name' ? afLang(t) : 'en-us';
+      // name (english_name | african_name): phonology auto-applies. A sidecar miss
+      // (no IPA) must NOT be frozen as 'none' — skip the entry so it retries next run.
       const value = ipa[t];
-      render = value ? { type: 'ipa', value, proxy } : { type: 'none' };
+      if (!value) continue;
+      const proxy = cls === 'african_name' ? afLang(t) : 'en-us';
+      render = { type: 'ipa', value, proxy };
     }
 
     lexicon[t] = {
