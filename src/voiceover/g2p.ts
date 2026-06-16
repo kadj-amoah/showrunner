@@ -14,7 +14,7 @@ export interface PhonemizeOptions {
 }
 
 /** Phonemize tokens grouped by espeak language in a single sidecar call.
- *  Returns {} on any failure (best-effort, like phonemizeTokens). */
+ *  Returns {} on any failure (best-effort approach). */
 export async function phonemizeByLanguage(
   groups: Record<string, string[]>,
   opts: PhonemizeOptions,

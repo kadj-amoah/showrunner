@@ -27,7 +27,7 @@ export function stripBreakTags(text: string): string {
  * drop out of BOTH sides before word comparison.
  *
  * The span delimiter is `/…/` with no whitespace inside (one token per span, as
- * produced by phonemizeSegments). A bare ASCII `a/b/c` could in principle match,
+ * produced by applyRenders). A bare ASCII `a/b/c` could in principle match,
  * but normalized VO prose doesn't carry slash runs, so the risk is theoretical.
  */
 export function stripInlineIpa(text: string): string {
