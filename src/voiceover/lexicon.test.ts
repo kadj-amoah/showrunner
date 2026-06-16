@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { contextHash, isFresh, type LexiconEntry } from './lexicon.js';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { contextHash, isFresh, loadLexicon, type LexiconEntry } from './lexicon.js';
 
 const entry = (over: Partial<LexiconEntry>): LexiconEntry => ({
   class: 'initialism',
@@ -32,5 +35,21 @@ describe('isFresh', () => {
   });
   it('treats a missing entry as not fresh', () => {
     expect(isFresh(undefined, 'h1')).toBe(false);
+  });
+});
+
+describe('loadLexicon', () => {
+  it('returns {} for a missing file', async () => {
+    expect(await loadLexicon(join(tmpdir(), 'does-not-exist-xyz.json'))).toEqual({});
+  });
+  it('returns {} for valid JSON of the wrong shape (array)', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'lex-'));
+    const p = join(dir, 'lexicon.json');
+    await writeFile(p, '[]', 'utf8');
+    try {
+      expect(await loadLexicon(p)).toEqual({});
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
   });
 });

@@ -17,7 +17,9 @@ export type Lexicon = Record<string, LexiconEntry>;
 
 export async function loadLexicon(path: string): Promise<Lexicon> {
   try {
-    return JSON.parse(await readFile(path, 'utf8')) as Lexicon;
+    const parsed = JSON.parse(await readFile(path, 'utf8')) as unknown;
+    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return {};
+    return parsed as Lexicon;
   } catch {
     return {};
   }
