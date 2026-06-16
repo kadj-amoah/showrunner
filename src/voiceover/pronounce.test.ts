@@ -43,7 +43,7 @@ describe('pronounce', () => {
     }));
     const segs = [{ vo_line: 'Akua audits the BoG ledger.' }];
     const out = await pronounce(segs, 'Akua audits the BoG ledger for fraud.', cfg(), llm as any);
-    expect(out.segments[0]!.vo_line).toBe('/IPA_Akua/ audits the Bank of Ghana ledger.');
+    expect(out.segments[0]!.vo_line).toBe('/IPA_Akua/ /IPA_audits/ the Bank of Ghana /IPA_ledger/.');
     expect(out.held).toEqual([]);
     const lex = JSON.parse(await readFile(join(dir, 'lexicon.json'), 'utf8'));
     expect(lex.Akua.render.proxy).toBe('sw');
@@ -64,5 +64,12 @@ describe('pronounce', () => {
   it('is best-effort: with no LLM, unknown names fall to English IPA', async () => {
     const out = await pronounce([{ vo_line: 'Open Eduwaka now.' }], 'Open Eduwaka now.', cfg({ resolverEnabled: false }), null);
     expect(out.segments[0]!.vo_line).toBe('Open /IPA_Eduwaka/ now.');
+  });
+
+  it('falls an unknown token to English IPA when the resolver omits it', async () => {
+    const llm = fakeLLM(async () => ({ tokens: [] })); // resolver runs but returns nothing
+    const out = await pronounce([{ vo_line: 'Open Eduwaka now.' }], 'Open Eduwaka now.', cfg(), llm as any);
+    expect(out.segments[0]!.vo_line).toBe('Open /IPA_Eduwaka/ now.');
+    expect(out.held).toEqual([]);
   });
 });

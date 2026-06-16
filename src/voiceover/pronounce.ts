@@ -58,16 +58,13 @@ export async function pronounce<T extends { vo_line: string }>(
   }
 
   // 3. Final class per freshly-classified token (LLM overrides the deterministic guess).
-  // When the resolver ran but returned no verdict for an unknown token, leave it as
-  // 'real_word' (render: none) — the LLM had the context and chose not to flag it.
-  // When the resolver is disabled, fall back to 'english_name' so the IPA sidecar
-  // still gives the synthesizer something useful.
-  const resolverRan = needLLM.length > 0 && llm !== null;
   const finalClass: Record<string, TokenClass> = {};
   for (const t of Object.keys(classes)) {
     const v = verdicts[t];
+    // A verdict wins. With no verdict, an unknown token falls to the English-IPA
+    // floor (phonemize it) — a silent LLM omission must not drop pronunciation help.
     if (v) finalClass[t] = v.class;
-    else if (classes[t] === 'unknown') finalClass[t] = resolverRan ? 'real_word' : 'english_name';
+    else if (classes[t] === 'unknown') finalClass[t] = 'english_name';
     else finalClass[t] = classes[t] as TokenClass;
   }
 
