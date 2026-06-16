@@ -16,7 +16,7 @@ export const ResolutionSchema = z.object({ tokens: z.array(ResolutionItemSchema)
 
 const SYSTEM_PROMPT = `You classify out-of-vocabulary tokens from a voiceover script so a speech synthesizer pronounces them correctly. For each token return its class:
 - english_name: a name read by English pronunciation rules.
-- african_name: a name of African origin. Set proxy_language to the espeak-ng language whose phonology best fits; default to "sw" (Swahili), which fits most West/East African names.
+- african_name: a name of African origin. Always set proxy_language to "sw" (Swahili). It is the single v1 proxy for all African names: espeak-ng has no West African voices, and Swahili's pure-vowel, CV phonology renders most African names (West and East) correctly. Do not propose any other language code.
 - initialism: an abbreviation/initialism. Set mode to "expand" with an "expansion" when the surrounding script makes the meaning clear (e.g. finance/fraud context -> BoG = "Bank of Ghana"); otherwise set mode to "letters". Give a confidence 0-1, up to two alternatives, and a one-line rationale citing the context cues.
 - real_word: an ordinary word needing no special handling.
 Use the full script as context. Return strictly the schema.`;
