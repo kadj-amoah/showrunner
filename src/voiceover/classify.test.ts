@@ -20,6 +20,11 @@ describe('classifyDeterministic', () => {
   it('routes unknown coined names to the LLM tail', () => {
     expect(classifyDeterministic('Eduwaka', { common, african })).toBe('unknown');
   });
+  it('prefers a listed African name over the initialism reading (by design)', () => {
+    // "AMA"/"ESI" homograph Ghanaian initialisms; the African check runs first.
+    const c2 = { common: new Set(['the']), african: new Set(['ama', 'esi']) };
+    expect(classifyDeterministic('AMA', c2)).toBe('african_name');
+  });
 });
 
 describe('isInitialismCandidate', () => {
