@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { VoiceoverSummary } from '../lib/api';
+  import type { VoiceoverSummary, LexRender } from '../lib/api';
 
   let { summary }: { summary: VoiceoverSummary } = $props();
 
@@ -10,7 +10,7 @@
     Object.entries(summary.pronunciation?.entries ?? {}).filter(([, e]) => e.render.type !== 'none'),
   );
   const heldSet = $derived(new Set(summary.pronunciation?.held ?? []));
-  function renderText(r: { type: string; value?: string }): string {
+  function renderText(r: LexRender): string {
     if (r.type === 'ipa') return `/${r.value}/`;
     if (r.type === 'letters' || r.type === 'expansion') return r.value ?? '';
     return '';
@@ -38,7 +38,7 @@
   <!-- Pronunciation (classify → route) -->
   {#if pron.length}
     <div class="row">
-      <span class="led on"></span>
+      <span class="led" class:on={heldSet.size === 0} class:fault={heldSet.size > 0}></span>
       <span class="rlabel">Pronunciation</span>
       <span class="rval">{pron.length}{#if heldSet.size} · {heldSet.size} to confirm{/if}</span>
     </div>
