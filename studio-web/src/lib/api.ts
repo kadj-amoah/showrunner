@@ -14,12 +14,28 @@ export interface NormalizationDiff {
   rule: string;
 }
 
+export type LexRender =
+  | { type: 'ipa'; value: string; proxy: string }
+  | { type: 'letters'; value: string }
+  | { type: 'expansion'; value: string }
+  | { type: 'none' };
+
+export interface LexEntry {
+  class: 'english_name' | 'african_name' | 'initialism' | 'real_word';
+  render: LexRender;
+  source: 'deterministic' | 'llm' | 'human';
+  confidence: number;
+  confirmed: boolean;
+  alternatives?: string[];
+  rationale?: string;
+}
+
 export interface VoiceoverSummary {
   normalization: { enabled: boolean; substitutions: number; diffs: NormalizationDiff[] };
   freeze: { key: string; reused: boolean };
   gate: { ok: boolean; issues: string[] };
   naturalness: { available: boolean; score: number | null; floor: number | null; belowFloor: boolean };
-  phonemes?: Record<string, string>;
+  pronunciation?: { entries: Record<string, LexEntry>; held: string[] } | null;
 }
 
 export interface SynthesizeResponse {

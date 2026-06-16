@@ -6,7 +6,15 @@
   const n = $derived(summary.normalization);
   const g = $derived(summary.gate);
   const nat = $derived(summary.naturalness);
-  const phon = $derived(Object.entries(summary.phonemes ?? {}));
+  const pron = $derived(
+    Object.entries(summary.pronunciation?.entries ?? {}).filter(([, e]) => e.render.type !== 'none'),
+  );
+  const heldSet = $derived(new Set(summary.pronunciation?.held ?? []));
+  function renderText(r: { type: string; value?: string }): string {
+    if (r.type === 'ipa') return `/${r.value}/`;
+    if (r.type === 'letters' || r.type === 'expansion') return r.value ?? '';
+    return '';
+  }
   const mosPct = $derived(nat.score != null ? Math.max(0, Math.min(100, (nat.score / 5) * 100)) : 0);
 </script>
 
@@ -27,16 +35,22 @@
     </ul>
   {/if}
 
-  <!-- Phonemized (G2P → IPA) -->
-  {#if phon.length}
+  <!-- Pronunciation (classify → route) -->
+  {#if pron.length}
     <div class="row">
       <span class="led on"></span>
-      <span class="rlabel">Phonemized</span>
-      <span class="rval">{phon.length}</span>
+      <span class="rlabel">Pronunciation</span>
+      <span class="rval">{pron.length}{#if heldSet.size} · {heldSet.size} to confirm{/if}</span>
     </div>
     <ul class="diffs">
-      {#each phon as [token, ipa]}
-        <li><span class="to">{token}</span><span class="arrow">→</span><span class="to">/{ipa}/</span><span class="rule">g2p</span></li>
+      {#each pron as [token, e]}
+        <li class:held={heldSet.has(token)}>
+          <span class="to">{token}</span>
+          <span class="arrow">→</span>
+          <span class="to">{renderText(e.render)}</span>
+          <span class="rule">{e.class.replace('_', ' ')} · {e.source}{#if e.source === 'llm'} {Math.round(e.confidence * 100)}%{/if}</span>
+        </li>
+        {#if e.rationale}<li class="why">{e.rationale}</li>{/if}
       {/each}
     </ul>
   {/if}
@@ -92,6 +106,8 @@
   .to { color: var(--ink); }
   .rule { margin-left: auto; color: var(--ink-faint); font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; }
   .issues li { color: var(--red); font-size: 12px; }
+  .held .to { color: var(--amber); }
+  .why { color: var(--ink-faint); font-size: 11px; padding-left: 8px; }
 
   .meter { height: 8px; background: var(--bg-inset); border: 1px solid var(--line); border-radius: 4px; overflow: hidden; }
   .meter-fill { display: block; height: 100%; background: linear-gradient(90deg, var(--green), var(--amber)); box-shadow: 0 0 10px var(--green-glow); }
