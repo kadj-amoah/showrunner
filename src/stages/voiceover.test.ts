@@ -63,8 +63,11 @@ function makeFakeProvider(): { provider: TTSProvider; calls: string[] } {
     supportsAlignment: true,
     async synthesize(req) {
       calls.push(req.text);
-      // EL consumes SSML break tags — they don't appear in the spoken alignment.
-      const chars = req.text.replace(/<break[^>]*\/>/g, '').split('');
+      // ElevenLabs echoes the request verbatim into the alignment — SSML break
+      // tags AND inline /IPA/ included (verified against a real eleven_v3
+      // capture). The gate must tolerate both; modelling the echo here is what
+      // exercises that.
+      const chars = req.text.split('');
       return {
         audio: Buffer.from('FAKE-AUDIO'),
         alignment: {
@@ -210,5 +213,11 @@ describe('voiceover stage — normalization + freeze wiring', () => {
     expect(result.skipped).toBeFalsy();
     expect(calls).toHaveLength(1);
     expect(calls[0]).toMatch(/ˈzɔːptæŋ/);
+
+    // The gate tolerates the inline IPA + break tag echoed in the alignment.
+    const summary = JSON.parse(
+      await readFile(join(projectDir, 'segments', 'audio', 'voiceover_summary.json'), 'utf8'),
+    );
+    expect(summary.gate.ok).toBe(true);
   });
 });

@@ -20,8 +20,32 @@ export function stripBreakTags(text: string): string {
   return text.replace(/<break[^>]*\/>/g, '');
 }
 
+/**
+ * Remove inline /IPA/ pronunciation spans injected by the G2P pass. Their
+ * grapheme content is a pronunciation hint, not a spoken word to refute, and
+ * ElevenLabs echoes them verbatim in the alignment characters — so they must
+ * drop out of BOTH sides before word comparison.
+ *
+ * The span delimiter is `/…/` with no whitespace inside (one token per span, as
+ * produced by phonemizeSegments). A bare ASCII `a/b/c` could in principle match,
+ * but normalized VO prose doesn't carry slash runs, so the risk is theoretical.
+ */
+export function stripInlineIpa(text: string): string {
+  return text.replace(/\/[^/\s]+\//g, ' ');
+}
+
+/**
+ * Strip everything that appears in the alignment characters but is not a spoken
+ * word: SSML break tags (ElevenLabs echoes them back) and inline IPA spans.
+ * Applied symmetrically to the expected text and the spoken characters so
+ * neither inflates the word count.
+ */
+function stripNonSpoken(text: string): string {
+  return stripInlineIpa(stripBreakTags(text));
+}
+
 function tokenize(s: string): string[] {
-  return s.toLowerCase().match(/[a-z0-9]+/g) ?? [];
+  return stripNonSpoken(s).toLowerCase().match(/[a-z0-9]+/g) ?? [];
 }
 
 function firstDivergence(a: string[], b: string[]): number {
