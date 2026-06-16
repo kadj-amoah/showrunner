@@ -3,9 +3,12 @@ import json, sys
 
 def main() -> int:
     try:
-        tokens = json.load(sys.stdin)
+        groups = json.load(sys.stdin)
     except Exception:
-        print("g2p: bad stdin (expected JSON array)", file=sys.stderr)
+        print("g2p: bad stdin (expected JSON object {language: [tokens]})", file=sys.stderr)
+        return 2
+    if not isinstance(groups, dict):
+        print("g2p: stdin must be an object of {language: [tokens]}", file=sys.stderr)
         return 2
     try:
         from phonemizer import phonemize
@@ -17,9 +20,10 @@ def main() -> int:
         return 3
     try:
         out = {}
-        for t in tokens:
-            ipa = phonemize(t, language="en-us", backend="espeak", strip=True, with_stress=True)
-            out[t] = ipa.strip()
+        for lang, tokens in groups.items():
+            for t in tokens:
+                ipa = phonemize(t, language=lang, backend="espeak", strip=True, with_stress=True)
+                out[t] = ipa.strip()
     except Exception as exc:
         print(f"g2p failed: {exc}", file=sys.stderr)
         return 1

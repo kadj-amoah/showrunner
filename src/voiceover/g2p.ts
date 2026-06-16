@@ -44,3 +44,36 @@ export async function phonemizeTokens(
     child.stdin.end();
   });
 }
+
+/** Phonemize tokens grouped by espeak language in a single sidecar call.
+ *  Returns {} on any failure (best-effort, like phonemizeTokens). */
+export async function phonemizeByLanguage(
+  groups: Record<string, string[]>,
+  opts: PhonemizeOptions,
+): Promise<Record<string, string>> {
+  const total = Object.values(groups).reduce((n, ts) => n + ts.length, 0);
+  if (total === 0) return {};
+  return new Promise((resolve) => {
+    const child = spawn(opts.python ?? 'python', [opts.scriptPath], {
+      stdio: ['pipe', 'pipe', 'inherit'],
+    });
+    let out = '';
+    child.stdout.on('data', (d) => {
+      out += d.toString();
+    });
+    child.on('error', () => resolve({}));
+    child.on('close', (code) => {
+      if (code !== 0) {
+        resolve({});
+        return;
+      }
+      try {
+        resolve(parseG2pOutput(out.trim()));
+      } catch {
+        resolve({});
+      }
+    });
+    child.stdin.write(JSON.stringify(groups));
+    child.stdin.end();
+  });
+}
