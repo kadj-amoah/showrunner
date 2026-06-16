@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
@@ -6,6 +6,12 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 vi.mock('../voiceover/ffmpeg.js', () => ({
   ffprobeDuration: vi.fn(async () => 10),
   runFfmpeg: vi.fn(async () => {}),
+}));
+
+// Stub the espeak sidecar so the resolver test never spawns Python.
+vi.mock('../voiceover/g2p.js', async (orig) => ({
+  ...(await orig<typeof import('../voiceover/g2p.js')>()),
+  phonemizeByLanguage: vi.fn(async () => ({})),
 }));
 
 import { runAdHocSynthesis } from './synthesize.js';
@@ -57,5 +63,33 @@ describe('runAdHocSynthesis', () => {
     const second = await runAdHocSynthesis(input, opts);
     expect(calls).toHaveLength(1);
     expect(second.summary.freeze.reused).toBe(true);
+  });
+
+  it('routes the resolver through a local agent_bridge LLM (no API key)', async () => {
+    const calls: string[] = [];
+    // A hermetic "LLM": a node one-liner that ignores stdin and prints the
+    // resolver's structured verdict. Proves opts.llm threads into the stage and
+    // the agent_bridge provider drives the resolver — no API key, no network.
+    const verdict = JSON.stringify({
+      tokens: [
+        { token: 'BoG', class: 'initialism', mode: 'expand', expansion: 'Bank of Ghana', confidence: 0.95, alternatives: [], rationale: 't' },
+      ],
+    });
+    // A script file (not `node -e`) so win32 shell:true can't mangle the args.
+    const bridgePath = join(root, 'fake-bridge.cjs');
+    await writeFile(bridgePath, `process.stdout.write(${JSON.stringify(verdict)})\n`, 'utf8');
+    const res = await runAdHocSynthesis(
+      { script: 'Open the BoG report.', voiceId: 'v1', model: 'eleven_v3', g2p: true },
+      {
+        runsRoot: root,
+        provider: fakeProvider(calls),
+        llm: {
+          default: { provider: 'agent_bridge', bridge: { mode: 'spawn', command: 'node', args: [bridgePath] } },
+        },
+      },
+    );
+    // The resolver (via the bridge) expanded BoG, and that reached the synth text.
+    expect(calls[0]).toContain('Bank of Ghana');
+    expect(res.summary.pronunciation).not.toBeNull();
   });
 });

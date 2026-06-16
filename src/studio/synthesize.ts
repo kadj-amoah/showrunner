@@ -1,7 +1,7 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { join, resolve } from 'node:path';
-import { showrunnerConfigSchema } from '../config/schema.js';
+import { showrunnerConfigSchema, type LLMConfig } from '../config/schema.js';
 import type { PipelineContext } from '../pipeline/types.js';
 import type { TTSProvider } from '../providers/tts/types.js';
 import { voiceoverStage } from '../stages/voiceover.js';
@@ -19,6 +19,13 @@ export interface AdHocInput {
 export interface AdHocOptions {
   runsRoot: string;
   provider?: TTSProvider;
+  /**
+   * Optional LLM provider config for the pronunciation resolver. Supplied by the
+   * Studio command from a local (gitignored) `studio.local.json` — lets a
+   * workbench point the resolver at a local provider (e.g. `agent_bridge` to a
+   * Claude CLI) with no API key. Absent → the schema default (anthropic) stands.
+   */
+  llm?: LLMConfig;
 }
 export interface AdHocResult {
   summary: any;
@@ -46,6 +53,7 @@ export async function runAdHocSynthesis(input: AdHocInput, opts: AdHocOptions): 
       naturalness: { enabled: input.naturalness ?? false },
       g2p: { enabled: input.g2p ?? false, resolver_enabled: input.g2p ?? false },
     },
+    ...(opts.llm ? { llm: opts.llm } : {}),
   });
 
   const ctx = {

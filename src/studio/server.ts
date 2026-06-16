@@ -3,10 +3,13 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { runAdHocSynthesis } from './synthesize.js';
 import { logger, onEvent } from '../util/logger.js';
+import type { LLMConfig } from '../config/schema.js';
 
 export interface StudioServerOptions {
   runsRoot: string;
   staticDir: string;
+  /** Optional LLM provider config threaded into ad-hoc synthesis (see AdHocOptions.llm). */
+  llm?: LLMConfig;
 }
 
 function json(
@@ -50,7 +53,7 @@ function serveFile(
   });
 }
 
-export function createStudioServer({ runsRoot, staticDir }: StudioServerOptions): http.Server {
+export function createStudioServer({ runsRoot, staticDir, llm }: StudioServerOptions): http.Server {
   const server = http.createServer(
     (req: http.IncomingMessage, res: http.ServerResponse) => {
       const url = new URL(req.url ?? '/', `http://localhost`);
@@ -79,7 +82,7 @@ export function createStudioServer({ runsRoot, staticDir }: StudioServerOptions)
             }
             return runAdHocSynthesis(
               body as unknown as Parameters<typeof runAdHocSynthesis>[0],
-              { runsRoot },
+              { runsRoot, ...(llm ? { llm } : {}) },
             ).then(({ summary, workdir }) => {
               const hash = path.basename(workdir);
               json(res, 200, { summary, audioUrl: `/api/audio?run=${hash}` });

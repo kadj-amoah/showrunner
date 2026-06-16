@@ -237,7 +237,7 @@ const llmProviderConfigSchema = z.discriminatedUnion('provider', [
   customLLMSchema,
 ]);
 
-const llmSchema = z
+export const llmSchema = z
   .object({
     default: llmProviderConfigSchema.default({
       provider: 'anthropic',

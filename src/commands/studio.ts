@@ -1,8 +1,10 @@
 import * as net from 'node:net';
 import { existsSync } from 'node:fs';
+import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { logger } from '../util/logger.js';
 import { createStudioServer } from '../studio/server.js';
+import { llmSchema, type LLMConfig } from '../config/schema.js';
 
 export interface StudioOpts {
   port?: string;
@@ -52,6 +54,25 @@ export async function studioCommand(opts: StudioOpts): Promise<void> {
     }
   }
 
+  // Optional local-only Studio config (gitignored): lets a workbench point the
+  // pronunciation resolver at a local LLM provider (e.g. agent_bridge → a Claude
+  // CLI) without an API key. Absent in production → the schema default stands.
+  let llm: LLMConfig | undefined;
+  const localCfgPath = join(process.cwd(), 'studio.local.json');
+  if (existsSync(localCfgPath)) {
+    try {
+      const parsed = JSON.parse(await readFile(localCfgPath, 'utf8')) as Record<string, unknown>;
+      if (parsed['llm']) {
+        llm = llmSchema.parse(parsed['llm']);
+        logger.info('Studio: applied local LLM provider override from studio.local.json');
+      }
+    } catch (err) {
+      logger.warn(
+        `Studio: ignoring studio.local.json (${err instanceof Error ? err.message : String(err)})`,
+      );
+    }
+  }
+
   // NOTE: cwd-relative paths assume the command is run from the repo root.
   const runsRoot = join(process.cwd(), 'studio', '.runs');
   const staticDir = join(process.cwd(), 'studio-web', 'dist');
@@ -63,7 +84,7 @@ export async function studioCommand(opts: StudioOpts): Promise<void> {
     logger.warn(`Port ${preferredPort} in use — using ${chosenPort} instead`);
   }
 
-  createStudioServer({ runsRoot, staticDir }).listen(chosenPort, () => {
+  createStudioServer({ runsRoot, staticDir, ...(llm ? { llm } : {}) }).listen(chosenPort, () => {
     logger.info('Showrunner Studio → http://localhost:' + chosenPort);
   });
 }
