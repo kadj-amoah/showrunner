@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { classifyDeterministic, isInitialismCandidate } from './classify.js';
+import { classifyDeterministic, isInitialismCandidate, loadDefaultAfricanNames } from './classify.js';
 
 const common = new Set(['the', 'plan', 'is', 'ok', 'bog', 'rivals', 'it', 'us']);
 const african = new Set(['akua', 'kwame', 'adwoa']);
@@ -29,5 +29,19 @@ describe('isInitialismCandidate', () => {
   });
   it('rejects long names with internal caps', () => {
     expect(isInitialismCandidate('McKinsey', common)).toBe(false);
+  });
+});
+
+describe('bundled African-name list', () => {
+  it('includes Akan day-names but not coined brand names', async () => {
+    const african = await loadDefaultAfricanNames();
+    expect(african.has('akua')).toBe(true);
+    expect(african.has('kwame')).toBe(true);
+    expect(african.has('eduwaka')).toBe(false);
+  });
+  it('classifies a coined brand name as unknown against the real list', async () => {
+    const commonWords = new Set(['the', 'is']);
+    const african = await loadDefaultAfricanNames();
+    expect(classifyDeterministic('Eduwaka', { common: commonWords, african })).toBe('unknown');
   });
 });
