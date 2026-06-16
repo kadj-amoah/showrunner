@@ -44,7 +44,7 @@ export async function runAdHocSynthesis(input: AdHocInput, opts: AdHocOptions): 
       normalization: { enabled: input.normalize ?? true },
       gate: { policy: input.gatePolicy ?? 'warn' },
       naturalness: { enabled: input.naturalness ?? false },
-      g2p: { enabled: input.g2p ?? false },
+      g2p: { enabled: input.g2p ?? false, resolver_enabled: input.g2p ?? false },
     },
   });
 

@@ -18,9 +18,8 @@ import {
   type SliceBoundary,
 } from '../voiceover/fullVo.js';
 import { normalizeSegments, type NormalizationDiff } from '../voiceover/normalize.js';
-import { detectOov, loadDefaultCommonWords } from '../voiceover/oov.js';
-import { phonemizeTokens } from '../voiceover/g2p.js';
-import { phonemizeSegments } from '../voiceover/phonemize.js';
+import { pronounce, type PronounceResult } from '../voiceover/pronounce.js';
+import { resolveDefaultLLMProvider } from '../providers/llm/resolveFromContext.js';
 import {
   masterFreezeKey,
   readMasterFreezeKey,
@@ -106,25 +105,42 @@ export const voiceoverStage: Stage = {
       });
     }
 
-    // G2P phonemization pass: for eleven_v3 with g2p.enabled, detect OOV tokens
-    // and inline IPA pronunciations so the model renders them correctly.
-    let phonemes: Record<string, string> = {};
+    // Pronunciation lexicon pass: classify OOV tokens and route each to the right
+    // render (English IPA / Swahili-proxy IPA / initialism letters / contextual
+    // expansion). Best-effort — any failure leaves the normalized text untouched.
+    let pron: PronounceResult<(typeof voSegments)[number]> | null = null;
     const g2pCfg = ctx.config.voiceover.g2p;
-    const isV3 = ctx.config.voiceover.provider.name === 'elevenlabs'
-      && ctx.config.voiceover.provider.model === 'eleven_v3';
+    const isV3 =
+      ctx.config.voiceover.provider.name === 'elevenlabs' &&
+      ctx.config.voiceover.provider.model === 'eleven_v3';
     if (g2pCfg.enabled && isV3) {
-      // G2P is best-effort: a missing word list or sidecar must never break the run.
       try {
-        const common = await loadDefaultCommonWords();
-        const tokens = [...new Set(voSegments.flatMap((s) => detectOov(s.vo_line, common)))];
-        phonemes = await phonemizeTokens(tokens, {
-          python: g2pCfg.python,
-          scriptPath: resolve(process.cwd(), g2pCfg.script_path),
+        const llm = g2pCfg.resolver_enabled ? resolveDefaultLLMProvider(ctx) : null;
+        const scriptContext = manifest.segments.map((s) => s.vo_line).join('\n\n');
+        pron = await pronounce(
+          voSegments,
+          scriptContext,
+          {
+            python: g2pCfg.python,
+            scriptPath: resolve(process.cwd(), g2pCfg.script_path),
+            proxyLanguage: g2pCfg.proxy_language,
+            resolverEnabled: g2pCfg.resolver_enabled,
+            confidenceThreshold: g2pCfg.confidence_threshold,
+            lexiconPath: resolve(ctx.configDir, g2pCfg.lexicon_path),
+          },
+          llm,
+        );
+        voSegments = pron.segments;
+        logger.event({
+          stage: 'voiceover',
+          status: 'pronounced',
+          tokens: Object.keys(pron.renders).length,
+          held: pron.held.length,
         });
-        voSegments = phonemizeSegments(voSegments, phonemes);
-        logger.event({ stage: 'voiceover', status: 'phonemized', tokens: Object.keys(phonemes).length });
       } catch (err) {
-        logger.warn(`voiceover: G2P pass skipped (${err instanceof Error ? err.message : String(err)})`);
+        logger.warn(
+          `voiceover: pronunciation pass skipped (${err instanceof Error ? err.message : String(err)})`,
+        );
       }
     }
 
@@ -339,7 +355,7 @@ export const voiceoverStage: Stage = {
           },
           gate: gateVerdict,
           naturalness,
-          phonemes,
+          pronunciation: pron ? { entries: pron.lexicon, held: pron.held } : null,
           freeze: { key: freezeKey, reused: reuse },
           master_audio: master.rawAudio,
           master_alignment: master.alignment,

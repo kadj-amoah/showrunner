@@ -20,7 +20,11 @@ vi.mock('../voiceover/naturalness.js', async (importOriginal) => ({
 
 vi.mock('../voiceover/g2p.js', async (orig) => ({
   ...(await orig<typeof import('../voiceover/g2p.js')>()),
-  phonemizeTokens: vi.fn(async () => ({ Zorptang: 'ˈzɔːptæŋ' })),
+  phonemizeByLanguage: vi.fn(async (groups: Record<string, string[]>) => {
+    const out: Record<string, string> = {};
+    for (const tokens of Object.values(groups)) for (const t of tokens) out[t] = t === 'Zorptang' ? 'ˈzɔːptæŋ' : `ipa_${t}`;
+    return out;
+  }),
 }));
 
 import { voiceoverStage } from './voiceover.js';
@@ -219,5 +223,28 @@ describe('voiceover stage — normalization + freeze wiring', () => {
       await readFile(join(projectDir, 'segments', 'audio', 'voiceover_summary.json'), 'utf8'),
     );
     expect(summary.gate.ok).toBe(true);
+    expect(summary.pronunciation).not.toBeNull();
+  });
+
+  it('expands an initialism via the resolver in v3+resolver mode', async () => {
+    const manifest = makeManifest();
+    manifest.segments[0]!.vo_line = 'Argus audits the BoG ledger for fraud.';
+    await writeManifestFile(projectDir, manifest);
+
+    const mockProvider = { generateStructured: vi.fn(async () => ({
+      tokens: [{ token: 'BoG', class: 'initialism', mode: 'expand', expansion: 'Bank of Ghana', confidence: 0.95, alternatives: [], rationale: 'finance' }],
+    })) };
+    const router = { default: mockProvider, forStage: () => mockProvider };
+
+    const { provider, calls } = makeFakeProvider();
+    const ctx = makeCtx(projectDir, provider, {
+      provider: { name: 'elevenlabs', voice_id: 'v1', model: 'eleven_v3' },
+      g2p: { enabled: true, resolver_enabled: true },
+    });
+    (ctx as any).providers = { tts: provider, llm: router };
+
+    const result = await voiceoverStage.run(ctx);
+    expect(result.skipped).toBeFalsy();
+    expect(calls[0]).toContain('Bank of Ghana');
   });
 });
