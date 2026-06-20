@@ -108,9 +108,15 @@ program
 
 program
   .command('doctor')
-  .description('Run preflight checks on the current config + environment')
-  .requiredOption('-c, --config <path>', 'path to demo.yaml')
+  .description(
+    'Run preflight checks. Without -c: system-prereq pass only (ffmpeg / ffprobe / chromium). With -c: full pass including provider keys, target URL, scripts.',
+  )
+  .option('-c, --config <path>', 'path to demo.yaml — switches doctor into full-pass mode')
   .option('--json', 'emit results as JSON instead of human-readable rows')
+  .option(
+    '--fix',
+    'on each fixable FAIL, prompt to run a remediation (e.g. install missing ffmpeg / chromium) and re-check',
+  )
   .action(doctorCommand);
 
 program
