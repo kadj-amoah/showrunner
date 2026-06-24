@@ -55,3 +55,37 @@ export function findWordStartTime(
   }
   return null;
 }
+
+export interface WordMarker {
+  name: string;
+  t: number;
+}
+
+/**
+ * Collapse the per-character alignment into per-word markers: one marker per
+ * whitespace-delimited word, `name` = the word text and `t` = the start time of
+ * its first character (in the alignment's own timebase). The `produce` harness
+ * hands these to the Orchestrator as the beat/word timings that cross-asset locks
+ * (and VO-driven motion) reference. Whitespace runs and leading/trailing space are
+ * ignored; an empty/whitespace-only alignment yields `[]`.
+ */
+export function wordMarkers(alignment: CharacterAlignment): WordMarker[] {
+  const { characters, character_start_times_seconds: starts } = alignment;
+  const markers: WordMarker[] = [];
+  let cur = '';
+  let startT = 0;
+  for (let i = 0; i < characters.length; i++) {
+    const ch = characters[i] ?? '';
+    if (/\s/.test(ch)) {
+      if (cur) {
+        markers.push({ name: cur, t: startT });
+        cur = '';
+      }
+      continue;
+    }
+    if (!cur) startT = typeof starts[i] === 'number' ? starts[i]! : 0;
+    cur += ch;
+  }
+  if (cur) markers.push({ name: cur, t: startT });
+  return markers;
+}
