@@ -1,0 +1,20 @@
+{
+  "total_duration_seconds": 3.901,
+  "generated_from": "studio-adhoc",
+  "segments": [
+    {
+      "id": "seg-0",
+      "label": "Segment 1",
+      "start": 0,
+      "end": 3.901,
+      "vo_line": "Press Ctrl+Z to undo. The plan is $0/month.",
+      "actions": [
+        {
+          "type": "idle",
+          "at": 0
+        }
+      ],
+      "transition": "fade_in"
+    }
+  ]
+}

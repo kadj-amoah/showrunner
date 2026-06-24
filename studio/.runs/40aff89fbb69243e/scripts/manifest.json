@@ -1,0 +1,76 @@
+{
+  "total_duration_seconds": 27.633,
+  "generated_from": "studio-adhoc",
+  "segments": [
+    {
+      "id": "seg-0",
+      "label": "Segment 1",
+      "start": 0,
+      "end": 4.824,
+      "vo_line": "Meet Eduwaka, the study companion built for the way you actually learn.",
+      "actions": [
+        {
+          "type": "idle",
+          "at": 0
+        }
+      ],
+      "transition": "fade_in"
+    },
+    {
+      "id": "seg-1",
+      "label": "Segment 2",
+      "start": 4.824,
+      "end": 11.425,
+      "vo_line": "Start by adding a course. Eduwaka reads your syllabus and lays out a plan you can follow at your own pace.",
+      "actions": [
+        {
+          "type": "idle",
+          "at": 0
+        }
+      ],
+      "transition": "cut"
+    },
+    {
+      "id": "seg-2",
+      "label": "Segment 3",
+      "start": 11.425,
+      "end": 17.903,
+      "vo_line": "When an exam gets close, it gathers everything you've covered and turns it into a short, focused review.",
+      "actions": [
+        {
+          "type": "idle",
+          "at": 0
+        }
+      ],
+      "transition": "cut"
+    },
+    {
+      "id": "seg-3",
+      "label": "Segment 4",
+      "start": 17.903,
+      "end": 23.72,
+      "vo_line": "Your progress saves on its own, so you can switch devices and pick up right where you left off.",
+      "actions": [
+        {
+          "type": "idle",
+          "at": 0
+        }
+      ],
+      "transition": "cut"
+    },
+    {
+      "id": "seg-4",
+      "label": "Segment 5",
+      "start": 23.72,
+      "end": 27.633,
+      "vo_line": "Give it a try this week, and see how much lighter the term feels.",
+      "actions": [
+        {
+          "type": "idle",
+          "at": 0
+        }
+      ],
+      "transition": "cut"
+    }
+  ]
+}

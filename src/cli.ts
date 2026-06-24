@@ -17,6 +17,7 @@ import { studioCommand } from './commands/studio.js';
 import { understandCommand } from './commands/understand.js';
 import { instrumentCommand } from './commands/instrument.js';
 import { recordActionsCommand } from './commands/recordActions.js';
+import { produceCommand } from './commands/produce.js';
 import { notImplemented } from './commands/notImplemented.js';
 import { STAGE_NAMES, type StageName } from './pipeline/types.js';
 
@@ -204,6 +205,15 @@ program
   .description('Approve edited VO script and resume the pipeline')
   .requiredOption('-c, --config <path>', 'path to demo.yaml')
   .action(approveVoCommand);
+
+program
+  .command('produce')
+  .description(
+    'MAIViS Orchestrator harness: run capture+VO+mux from a single spec.json and emit one `realized` JSON (mp4 + intrinsic_duration + word markers) to <out>/realized.json and stdout',
+  )
+  .argument('<spec>', 'path to the produce spec.json (target + voice + capture manifest)')
+  .requiredOption('--out <dir>', 'work directory for this run; realized.json is written here')
+  .action((spec: string, opts: { out: string }) => produceCommand(spec, opts));
 
 program.parseAsync(process.argv).catch((err: unknown) => {
   const message = err instanceof Error ? err.message : String(err);

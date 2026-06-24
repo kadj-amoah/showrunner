@@ -1,0 +1,20 @@
+{
+  "total_duration_seconds": 4.88,
+  "generated_from": "studio-adhoc",
+  "segments": [
+    {
+      "id": "seg-0",
+      "label": "Segment 1",
+      "start": 0,
+      "end": 4.88,
+      "vo_line": "Our platform Eduwaka, from Credstone, monitors Argus around the clock.",
+      "actions": [
+        {
+          "type": "idle",
+          "at": 0
+        }
+      ],
+      "transition": "fade_in"
+    }
+  ]
+}

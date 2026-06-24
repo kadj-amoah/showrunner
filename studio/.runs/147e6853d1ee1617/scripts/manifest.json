@@ -1,0 +1,62 @@
+{
+  "total_duration_seconds": 16,
+  "generated_from": "studio-adhoc",
+  "segments": [
+    {
+      "id": "seg-0",
+      "label": "Segment 1",
+      "start": 0,
+      "end": 4,
+      "vo_line": "Welcome to Argus, the fraud-defence platform by Credstone. What you're seeing runs on version v2.5, with every screen driven by a single API.",
+      "actions": [
+        {
+          "type": "idle",
+          "at": 0
+        }
+      ],
+      "transition": "fade_in"
+    },
+    {
+      "id": "seg-1",
+      "label": "Segment 2",
+      "start": 4,
+      "end": 8,
+      "vo_line": "Getting started costs nothing — the analyst console is $0/month, and a full deployment that watches up to GH¢10,000,000 in daily transactions scales from\n  there.",
+      "actions": [
+        {
+          "type": "idle",
+          "at": 0
+        }
+      ],
+      "transition": "none"
+    },
+    {
+      "id": "seg-2",
+      "label": "Segment 3",
+      "start": 8,
+      "end": 12,
+      "vo_line": "Here's the loop. Open a flagged case, review the linked transactions, and if you misclick, press Ctrl+Z to undo, then Ctrl+S to save your notes. When the\n  evidence is clear, Argus drafts the SAR and hands it to the BoG portal.",
+      "actions": [
+        {
+          "type": "idle",
+          "at": 0
+        }
+      ],
+      "transition": "none"
+    },
+    {
+      "id": "seg-3",
+      "label": "Segment 4",
+      "start": 12,
+      "end": 16,
+      "vo_line": "Detect, investigate, and file — all in one place, without ever leaving the screen.",
+      "actions": [
+        {
+          "type": "idle",
+          "at": 0
+        }
+      ],
+      "transition": "none"
+    }
+  ]
+}

@@ -1,0 +1,76 @@
+{
+  "total_duration_seconds": 28.746,
+  "generated_from": "studio-adhoc",
+  "segments": [
+    {
+      "id": "seg-0",
+      "label": "Segment 1",
+      "start": 0,
+      "end": 3.843,
+      "vo_line": "Meet Akua, she needs to learn about the BoG today.",
+      "actions": [
+        {
+          "type": "idle",
+          "at": 0
+        }
+      ],
+      "transition": "fade_in"
+    },
+    {
+      "id": "seg-1",
+      "label": "Segment 2",
+      "start": 3.843,
+      "end": 12.533,
+      "vo_line": "she would start by adding a course. Eduwaka reads her syllabus 20,000 times and lays out a plan she can follow at her own pace.",
+      "actions": [
+        {
+          "type": "idle",
+          "at": 0
+        }
+      ],
+      "transition": "cut"
+    },
+    {
+      "id": "seg-2",
+      "label": "Segment 3",
+      "start": 12.533,
+      "end": 18.866,
+      "vo_line": "When an exam gets close, it gathers everything she'd covered and turns it into a short, focused review.",
+      "actions": [
+        {
+          "type": "idle",
+          "at": 0
+        }
+      ],
+      "transition": "cut"
+    },
+    {
+      "id": "seg-3",
+      "label": "Segment 4",
+      "start": 18.866,
+      "end": 24.648,
+      "vo_line": "her progress saves on its own, so she can switch devices and pick up right where she left off.",
+      "actions": [
+        {
+          "type": "idle",
+          "at": 0
+        }
+      ],
+      "transition": "cut"
+    },
+    {
+      "id": "seg-4",
+      "label": "Segment 5",
+      "start": 24.648,
+      "end": 28.746,
+      "vo_line": "Give it a try this 1st week, and see how much lighter the term feels.",
+      "actions": [
+        {
+          "type": "idle",
+          "at": 0
+        }
+      ],
+      "transition": "cut"
+    }
+  ]
+}
