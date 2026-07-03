@@ -18,6 +18,7 @@ import { understandCommand } from './commands/understand.js';
 import { instrumentCommand } from './commands/instrument.js';
 import { recordActionsCommand } from './commands/recordActions.js';
 import { produceCommand } from './commands/produce.js';
+import { authorPlanCommand, type AuthorPlanCommandOpts } from './commands/authorPlan.js';
 import { notImplemented } from './commands/notImplemented.js';
 import { STAGE_NAMES, type StageName } from './pipeline/types.js';
 
@@ -214,6 +215,19 @@ program
   .argument('<spec>', 'path to the produce spec.json (target + voice + capture manifest)')
   .requiredOption('--out <dir>', 'work directory for this run; realized.json is written here')
   .action((spec: string, opts: { out: string }) => produceCommand(spec, opts));
+
+program
+  .command('author-plan')
+  .description(
+    'Explore a live target and author a grounded capture plan (manifest + selector inventory) as JSON. ' +
+      'Non-zero exit + { error } JSON on a failed inspection — never a partial/guessed plan.',
+  )
+  .option('--intent <path>', 'path to a JSON file matching AuthorPlanInput (target_url, instructions, duration_s, ...)')
+  .option('--target-url <url>', 'target URL to explore (overrides --intent)')
+  .option('--instructions <text>', 'freeform authoring guidance (overrides --intent)')
+  .option('--duration-s <seconds>', 'target capture duration in seconds (overrides --intent)')
+  .option('--out <path>', 'write the AuthorPlanResult (or error) JSON here; default stdout/stderr')
+  .action((opts: AuthorPlanCommandOpts) => authorPlanCommand(opts));
 
 program.parseAsync(process.argv).catch((err: unknown) => {
   const message = err instanceof Error ? err.message : String(err);
