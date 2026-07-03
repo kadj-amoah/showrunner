@@ -79,6 +79,7 @@ export function renderManifestUserPrompt(
   productModel: ProductModel,
   scriptConfig: ScriptConfig,
   selectorInventory?: SelectorInventoryItem[],
+  guidance?: string,
 ): string {
   const parts = [
     'Generate a manifest for the product described below.',
@@ -91,12 +92,17 @@ export function renderManifestUserPrompt(
         ? '(none specified — choose them yourself from the product model)'
         : JSON.stringify(scriptConfig.highlight_features)
     }`,
+  ];
+  if (guidance && guidance.trim().length > 0) {
+    parts.push('', '## Director instructions', guidance.trim());
+  }
+  parts.push(
     '',
     '## Product model',
     '```json',
     JSON.stringify(productModel, null, 2),
     '```',
-  ];
+  );
   if (selectorInventory && selectorInventory.length > 0) {
     parts.push(
       '',
@@ -115,9 +121,10 @@ export function renderRetryPrompt(
   scriptConfig: ScriptConfig,
   validationError: string,
   selectorInventory?: SelectorInventoryItem[],
+  guidance?: string,
 ): string {
   return [
-    renderManifestUserPrompt(productModel, scriptConfig, selectorInventory),
+    renderManifestUserPrompt(productModel, scriptConfig, selectorInventory, guidance),
     '',
     '## Previous attempt failed validation',
     'Your previous response did not pass validation. Fix these issues and emit a corrected manifest:',

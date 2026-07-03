@@ -23,6 +23,7 @@ export interface GenerateManifestOptions {
   scriptConfig: ScriptConfig;
   provider: LLMProvider;
   selectorInventory?: SelectorInventoryItem[];
+  guidance?: string;
 }
 
 export class ManifestGenerationError extends Error {
@@ -38,6 +39,7 @@ export async function generateManifest(opts: GenerateManifestOptions): Promise<M
         opts.productModel,
         opts.scriptConfig,
         opts.selectorInventory,
+        opts.guidance,
       ),
       schema: manifestSchema,
       schemaName: 'manifest',
@@ -48,6 +50,7 @@ export async function generateManifest(opts: GenerateManifestOptions): Promise<M
           opts.scriptConfig,
           errorText,
           opts.selectorInventory,
+          opts.guidance,
         ),
     });
 
@@ -75,7 +78,12 @@ export async function generateManifest(opts: GenerateManifestOptions): Promise<M
         }
 
         const remediationUserPrompt = [
-          renderManifestUserPrompt(opts.productModel, opts.scriptConfig, opts.selectorInventory),
+          renderManifestUserPrompt(
+            opts.productModel,
+            opts.scriptConfig,
+            opts.selectorInventory,
+            opts.guidance,
+          ),
           '',
           renderSelectorRemediation(check.violations),
         ].join('\n');
