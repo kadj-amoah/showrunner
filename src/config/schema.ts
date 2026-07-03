@@ -24,7 +24,7 @@ const comprehensionSchema = z.object({
   sources: z.array(comprehensionSourceSchema).default([]),
 });
 
-const scriptSchema = z.object({
+export const scriptSchema = z.object({
   style: z.string().default('matter-of-fact'),
   duration_target_seconds: z.number().int().positive().default(90),
   highlight_features: z.array(z.string()).default([]),
@@ -78,7 +78,7 @@ const authSchema = z.discriminatedUnion('type', [
   authFormSchema,
 ]);
 
-const recordingSchema = z.object({
+export const recordingSchema = z.object({
   target_url: z.string().url(),
   viewport: viewportSchema.default({ width: 1920, height: 1080 }),
   browser: z.enum(['chromium', 'firefox', 'webkit']).default('chromium'),
