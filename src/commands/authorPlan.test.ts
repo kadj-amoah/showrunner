@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, afterEach, vi } from 'vitest';
 import { mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -108,5 +108,54 @@ describe('authorPlanCommand', () => {
     expect(process.exitCode).toBe(1);
     const written = JSON.parse(await readFile(outFile, 'utf8'));
     expect(written.error).toContain('target URL');
+  });
+
+  it('creates a not-yet-existing nested --out directory before writing the plan on success', async () => {
+    const out = await freshOut();
+    const outFile = join(out, 'nested', 'deeper', 'plan.json');
+
+    await authorPlanCommand(
+      { targetUrl: 'https://example.com', instructions: 'show the dashboard', durationS: '30', out: outFile },
+      {
+        run: (async () => fakeResult) as never,
+      },
+    );
+
+    expect(process.exitCode).toBeUndefined();
+    const written = JSON.parse(await readFile(outFile, 'utf8'));
+    expect(written).toEqual(fakeResult);
+  });
+
+  it('writes { error } JSON to stderr and exits non-zero on failure when --out is omitted', async () => {
+    const stderrSpy = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
+
+    try {
+      await authorPlanCommand(
+        { targetUrl: 'https://unreachable.test', durationS: '10' },
+        {
+          run: (async () => {
+            throw new AuthorPlanError('could not inspect https://unreachable.test: net::ERR_CONNECTION_REFUSED');
+          }) as never,
+        },
+      );
+
+      expect(process.exitCode).toBe(1);
+      expect(stderrSpy).toHaveBeenCalled();
+      const written = stderrSpy.mock.calls
+        .map((call) => String(call[0]))
+        .find((chunk) => {
+          try {
+            return JSON.parse(chunk).error !== undefined;
+          } catch {
+            return false;
+          }
+        });
+      expect(written).toBeDefined();
+      expect(JSON.parse(written as string)).toEqual({
+        error: 'could not inspect https://unreachable.test: net::ERR_CONNECTION_REFUSED',
+      });
+    } finally {
+      stderrSpy.mockRestore();
+    }
   });
 });

@@ -1,5 +1,5 @@
-import { readFile, writeFile } from 'node:fs/promises';
-import { isAbsolute, resolve } from 'node:path';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { dirname, isAbsolute, resolve } from 'node:path';
 import { authorPlan, AuthorPlanError, type AuthorPlanInput, type AuthorPlanResult } from '../scriptGen/authorPlan.js';
 import { logger } from '../util/logger.js';
 
@@ -90,6 +90,7 @@ async function emitSuccess(outPath: string | undefined, result: AuthorPlanResult
   const json = JSON.stringify(result, null, 2);
   if (outPath) {
     const p = isAbsolute(outPath) ? outPath : resolve(process.cwd(), outPath);
+    await mkdir(dirname(p), { recursive: true });
     await writeFile(p, json + '\n', 'utf8');
     logger.info('Wrote author-plan result', { path: p });
   } else {
@@ -103,10 +104,13 @@ async function emitFailure(outPath: string | undefined, message: string): Promis
   if (outPath) {
     const p = isAbsolute(outPath) ? outPath : resolve(process.cwd(), outPath);
     try {
+      await mkdir(dirname(p), { recursive: true });
       await writeFile(p, json + '\n', 'utf8');
     } catch (writeErr) {
       logger.error(`author-plan: could not write ${p}: ${errMsg(writeErr)}`);
     }
+  } else {
+    process.stderr.write(json + '\n');
   }
   logger.error(message);
 }
