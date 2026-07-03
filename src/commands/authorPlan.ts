@@ -29,7 +29,9 @@ const errMsg = (e: unknown): string => (e instanceof Error ? e.message : String(
  * `AuthorPlanResult` JSON to `--out` (or stdout) and exits 0 on success.
  * Any failure (bad input, or an `AuthorPlanError` from a failed inspection)
  * is written as `{ error }` JSON to `--out` (or stderr) with a non-zero
- * exit — never a partial/guessed plan.
+ * exit — never a partial/guessed plan. Machine callers should always pass
+ * `--out <file>`: in global `--json` log mode, log lines also go to stdout,
+ * so the no-`--out` stdout path can interleave a log line with the plan JSON.
  */
 export async function authorPlanCommand(
   opts: AuthorPlanCommandOpts,

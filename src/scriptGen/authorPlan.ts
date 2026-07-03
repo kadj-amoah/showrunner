@@ -1,5 +1,6 @@
 import { scrapeSelectorInventory, type ScrapeOptions, type SelectorInventoryItem } from './domPreflight.js';
 import { generateManifest, type GenerateManifestOptions } from './generate.js';
+import { validateManifestSelectors } from './validateSelectors.js';
 import { productModelSchema } from '../productModel/schema.js';
 import {
   recordingSchema,
@@ -111,7 +112,7 @@ export async function authorPlan(
   }
 
   const warnings: string[] = [];
-  const grounded = inventory.length > 0;
+  let grounded = inventory.length > 0;
   if (!grounded) {
     warnings.push('DOM inventory was empty — plan is not grounded to real selectors');
     logger.warn(`authorPlan: DOM inventory for ${input.target_url} was empty — proceeding ungrounded`);
@@ -129,6 +130,22 @@ export async function authorPlan(
   } catch (err) {
     const cause = err instanceof Error ? err.message : String(err);
     throw new AuthorPlanError(`could not author a capture manifest for ${input.target_url}: ${cause}`);
+  }
+
+  // generateManifest runs its own validate/remediate loop, but when the LLM
+  // still emits out-of-inventory selectors after a retry, it logs a warning
+  // and returns the manifest anyway (see generate.ts's "accepting anyway"
+  // path). Re-check here so the single `grounded` boolean callers gate on
+  // stays trustworthy — a plan with any ungrounded selector isn't grounded.
+  if (grounded) {
+    const check = validateManifestSelectors(manifest, inventory);
+    if (!check.ok) {
+      grounded = false;
+      const badSelectors = check.violations.map((v) => v.selector).join(', ');
+      warnings.push(
+        `${check.violations.length} selector(s) not found in the live DOM inventory — plan is not fully grounded: ${badSelectors}`,
+      );
+    }
   }
 
   return { manifest, inventory, warnings, grounded };

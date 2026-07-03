@@ -63,4 +63,23 @@ describe('authorPlan', () => {
     expect(res.grounded).toBe(false);
     expect(res.warnings.join(' ')).toMatch(/inventory/i);
   });
+
+  it('authorPlan flags non-grounded when generate returns residual selector violations (non-empty inventory)', async () => {
+    const BAD_MANIFEST = {
+      total_duration_seconds: 30,
+      generated_from: 'product_model.json',
+      segments: [
+        { id: 's1', label: 'Intro', start: 0, end: 15, vo_line: 'hi', transition: 'fade_in',
+          actions: [{ type: 'navigate', url: 'https://x.test' }, { type: 'click', selector: '.made-up-selector' }] },
+        { id: 's2', label: 'Outro', start: 15, end: 30, vo_line: 'bye', transition: 'cut',
+          actions: [{ type: 'idle' }] },
+      ],
+    };
+    const res = await authorPlan(
+      { target_url: 'https://x.test', instructions: 'Show saving.', duration_s: 30, product_name: 'X' },
+      { scrape: async () => FAKE_INVENTORY, generate: async () => BAD_MANIFEST as any },
+    );
+    expect(res.grounded).toBe(false);
+    expect(res.warnings.join(' ')).toMatch(/\.made-up-selector/);
+  });
 });

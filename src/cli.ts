@@ -226,7 +226,11 @@ program
   .option('--target-url <url>', 'target URL to explore (overrides --intent)')
   .option('--instructions <text>', 'freeform authoring guidance (overrides --intent)')
   .option('--duration-s <seconds>', 'target capture duration in seconds (overrides --intent)')
-  .option('--out <path>', 'write the AuthorPlanResult (or error) JSON here; default stdout/stderr')
+  .option(
+    '--out <path>',
+    'write the AuthorPlanResult (or error) JSON here; default stdout/stderr. ' +
+      'Machine callers should use --out: with the global --json log mode, log lines also go to stdout and can interleave with the plan JSON.',
+  )
   .action((opts: AuthorPlanCommandOpts) => authorPlanCommand(opts));
 
 program.parseAsync(process.argv).catch((err: unknown) => {
