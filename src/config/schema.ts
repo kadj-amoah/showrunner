@@ -72,7 +72,7 @@ const authFormSchema = z.object({
   timeout_ms: z.number().int().positive().default(5000),
 });
 
-const authSchema = z.discriminatedUnion('type', [
+export const authSchema = z.discriminatedUnion('type', [
   authSetupScriptSchema,
   authSessionSchema,
   authFormSchema,

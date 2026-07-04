@@ -105,6 +105,35 @@ describe('authorPlan', () => {
     }
   });
 
+  it('passes a built AuthPlan and sessionOutPath into scrape when auth is supplied', async () => {
+    let sawAuth = false
+    let sawSessionOut: string | undefined
+    const res = await authorPlan(
+      {
+        target_url: 'http://x/dashboard/1', duration_s: 10, session_out: '/tmp/s.json',
+        auth: { type: 'session', cookies_file: 'C:/nope/does-not-matter.json' },
+      },
+      {
+        // Real buildAuthPlan would hit disk for the session's cookies_file (which
+        // doesn't exist here); inject a stub so the test stays hermetic while still
+        // exercising the passthrough of the *built* AuthPlan into scrape.
+        buildAuth: async () => ({}),
+        scrape: async (opts) => {
+          sawAuth = opts.auth !== undefined
+          sawSessionOut = opts.sessionOutPath
+          return { items: [{ tag: 'button', selector: '[data-testid="kpi"]', dataTestid: 'kpi' }], finalUrl: 'http://x/dashboard/1' }
+        },
+        generate: async () => ({
+          total_duration_seconds: 10, generated_from: 'x',
+          segments: [{ id: 's1', label: 'L', start: 0, end: 10, vo_line: 'h', transition: 'cut', actions: [{ type: 'wait_for', selector: '[data-testid="kpi"]' }] }],
+        }) as never,
+      },
+    )
+    expect(res.status).toBe('ok')
+    expect(sawAuth).toBe(true)
+    expect(sawSessionOut).toBe('/tmp/s.json')
+  })
+
   it('returns status ok with a grounded manifest when the target loads', async () => {
     const res = await authorPlan(
       { target_url: 'http://x/dashboard/1', duration_s: 10 },

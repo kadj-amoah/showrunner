@@ -11,6 +11,7 @@ import {
   recordingSchema,
   scriptSchema,
   llmSchema,
+  authSchema,
   type RecordingConfig,
   type ScriptConfig,
   type LLMConfig,
@@ -19,6 +20,7 @@ import { resolveDefaultLLMProvider } from '../providers/llm/resolveFromContext.j
 import type { Manifest } from '../manifest/schema.js';
 import { logger } from '../util/logger.js';
 import { detectAuthWall, type AuthChallenge } from './detectAuthWall.js';
+import { buildAuthPlan, type AuthPlan } from '../recording/auth.js';
 
 export interface AuthorPlanInput {
   target_url: string;
@@ -36,8 +38,10 @@ export interface AuthorPlanInput {
   configDir?: string;
   /** Optional llm config; default agent_bridge spawning `claude`. */
   llm?: unknown;
-  /** Auth plan (credentials/session) to apply to the explore browser. Added in ST-3; always undefined for now. */
+  /** Optional auth for the explore browser; parsed with authSchema (form|session|setup_script). */
   auth?: unknown;
+  /** If set, persist the post-login storageState here for reuse. */
+  session_out?: string;
 }
 
 export interface AuthorPlanOk {
@@ -64,6 +68,7 @@ export class AuthorPlanError extends Error {
 export interface AuthorPlanDeps {
   scrape?: (opts: ScrapeOptions) => Promise<ScrapeResult>;
   generate?: (opts: GenerateManifestOptions) => Promise<Manifest>;
+  buildAuth?: (auth: unknown, configDir: string) => Promise<AuthPlan>;
 }
 
 /**
@@ -79,6 +84,9 @@ export async function authorPlan(
 ): Promise<AuthorPlanResult> {
   const scrape = deps.scrape ?? scrapeSelectorInventory;
   const generate = deps.generate ?? generateManifest;
+  const buildAuth =
+    deps.buildAuth ??
+    ((a: unknown, dir: string) => buildAuthPlan(a ? authSchema.parse(a) : undefined, dir));
 
   const recording: RecordingConfig = recordingSchema.parse({
     target_url: input.target_url,
@@ -123,7 +131,20 @@ export async function authorPlan(
   let inventory: SelectorInventoryItem[];
   let finalUrl: string;
   try {
-    const scraped = await scrape({ targetUrl: input.target_url, recording });
+    // Building the AuthPlan lives in this same try/catch as the scrape call
+    // itself: a malformed `auth` (bad authSchema shape, missing cookies_file,
+    // etc.) is just as much a "couldn't inspect the target" failure as a
+    // network error, and should surface the same named AuthorPlanError rather
+    // than an untyped AuthError escaping authorPlan.
+    const authPlan = input.auth
+      ? await buildAuth(input.auth, input.configDir ?? process.cwd())
+      : undefined;
+    const scraped = await scrape({
+      targetUrl: input.target_url,
+      recording,
+      auth: authPlan,
+      sessionOutPath: input.session_out,
+    });
     inventory = scraped.items;
     finalUrl = scraped.finalUrl;
   } catch (err) {
