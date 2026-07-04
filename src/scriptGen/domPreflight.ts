@@ -16,6 +16,10 @@ export interface SelectorInventoryItem {
   placeholder?: string;
   ariaLabel?: string;
   href?: string;
+  /** The raw `type` attribute (e.g. input `password`/`email`/`submit`, button `submit`).
+   *  Lets downstream heuristics key off the canonical type rather than fragile name/text
+   *  matching. */
+  inputType?: string;
 }
 
 export interface ScrapeResult {
@@ -126,6 +130,8 @@ function buildScrapeScript(selectorSource: string, maxItems: number): string {
       if (placeholder) item.placeholder = placeholder;
       var aria = el.getAttribute('aria-label');
       if (aria) item.ariaLabel = aria;
+      var itype = el.getAttribute('type');
+      if (itype) item.inputType = itype.toLowerCase();
       if (el.tagName === 'A' && el.href) item.href = el.href;
       out.push(item);
       if (out.length >= ${maxItems}) break;
