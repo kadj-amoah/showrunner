@@ -82,4 +82,43 @@ describe('authorPlan', () => {
     expect(res.grounded).toBe(false);
     expect(res.warnings.join(' ')).toMatch(/\.made-up-selector/);
   });
+
+  it('returns needs_auth when the explore lands on a login page', async () => {
+    const res = await authorPlan(
+      { target_url: 'http://x/dashboard/1', duration_s: 10 },
+      {
+        scrape: async () => ({
+          items: [
+            { tag: 'input', selector: 'input[name="username"]', name: 'username' },
+            { tag: 'input', selector: 'input[name="password"]', name: 'password' },
+            { tag: 'button', selector: 'button:has-text("Sign in")', visibleText: 'Sign in' },
+          ],
+          finalUrl: 'http://x/auth/login',
+        }),
+        generate: async () => { throw new Error('should not author a manifest for a login page') },
+      },
+    );
+    expect(res.status).toBe('needs_auth');
+    if (res.status === 'needs_auth') {
+      expect(res.auth_challenge.mode).toBe('form');
+      expect(res.final_url).toBe('http://x/auth/login');
+    }
+  });
+
+  it('returns status ok with a grounded manifest when the target loads', async () => {
+    const res = await authorPlan(
+      { target_url: 'http://x/dashboard/1', duration_s: 10 },
+      {
+        scrape: async () => ({
+          items: [{ tag: 'button', selector: '[data-testid="kpi"]', dataTestid: 'kpi' }],
+          finalUrl: 'http://x/dashboard/1',
+        }),
+        generate: async () => ({
+          total_duration_seconds: 10, generated_from: 'x',
+          segments: [{ id: 's1', label: 'L', start: 0, end: 10, vo_line: 'hi', transition: 'cut', actions: [{ type: 'wait_for', selector: '[data-testid="kpi"]' }] }],
+        }) as never,
+      },
+    );
+    expect(res.status).toBe('ok');
+  });
 });

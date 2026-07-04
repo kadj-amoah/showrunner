@@ -18,6 +18,7 @@ import {
 import { resolveDefaultLLMProvider } from '../providers/llm/resolveFromContext.js';
 import type { Manifest } from '../manifest/schema.js';
 import { logger } from '../util/logger.js';
+import { detectAuthWall, type AuthChallenge } from './detectAuthWall.js';
 
 export interface AuthorPlanInput {
   target_url: string;
@@ -35,15 +36,26 @@ export interface AuthorPlanInput {
   configDir?: string;
   /** Optional llm config; default agent_bridge spawning `claude`. */
   llm?: unknown;
+  /** Auth plan (credentials/session) to apply to the explore browser. Added in ST-3; always undefined for now. */
+  auth?: unknown;
 }
 
-export interface AuthorPlanResult {
+export interface AuthorPlanOk {
+  status: 'ok';
   manifest: Manifest;
   inventory: SelectorInventoryItem[];
   warnings: string[];
   /** True iff a non-empty inventory backed the authoring. */
   grounded: boolean;
 }
+
+export interface AuthorPlanNeedsAuth {
+  status: 'needs_auth';
+  auth_challenge: AuthChallenge;
+  final_url: string;
+}
+
+export type AuthorPlanResult = AuthorPlanOk | AuthorPlanNeedsAuth;
 
 export class AuthorPlanError extends Error {
   override readonly name = 'AuthorPlanError';
@@ -119,6 +131,16 @@ export async function authorPlan(
     throw new AuthorPlanError(`could not inspect ${input.target_url}: ${cause}`);
   }
 
+  const challenge = detectAuthWall(input.target_url, finalUrl, inventory);
+  if (challenge && !input.auth) {
+    // Landed on an auth wall and no credentials/session were supplied — surface it.
+    return { status: 'needs_auth', auth_challenge: challenge, final_url: finalUrl };
+  }
+  if (challenge && input.auth) {
+    // Auth WAS supplied but we're still on the wall — login did not take.
+    return { status: 'needs_auth', auth_challenge: { ...challenge }, final_url: finalUrl };
+  }
+
   const warnings: string[] = [];
   let grounded = inventory.length > 0;
   if (!grounded) {
@@ -156,7 +178,7 @@ export async function authorPlan(
     }
   }
 
-  return { manifest, inventory, warnings, grounded };
+  return { status: 'ok', manifest, inventory, warnings, grounded };
 }
 
 function hostOf(url: string): string {
