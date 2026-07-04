@@ -69,10 +69,12 @@ export const scriptStage: Stage = {
           status: 'dom_preflight',
           target_url: ctx.config.recording.target_url,
         });
-        selectorInventory = await scrapeSelectorInventory({
-          targetUrl: ctx.config.recording.target_url,
-          recording: ctx.config.recording,
-        });
+        selectorInventory = (
+          await scrapeSelectorInventory({
+            targetUrl: ctx.config.recording.target_url,
+            recording: ctx.config.recording,
+          })
+        ).items;
         logger.event({
           stage: 'script',
           status: 'dom_preflight_done',

@@ -1,4 +1,9 @@
-import { scrapeSelectorInventory, type ScrapeOptions, type SelectorInventoryItem } from './domPreflight.js';
+import {
+  scrapeSelectorInventory,
+  type ScrapeOptions,
+  type ScrapeResult,
+  type SelectorInventoryItem,
+} from './domPreflight.js';
 import { generateManifest, type GenerateManifestOptions } from './generate.js';
 import { validateManifestSelectors } from './validateSelectors.js';
 import { productModelSchema } from '../productModel/schema.js';
@@ -45,7 +50,7 @@ export class AuthorPlanError extends Error {
 }
 
 export interface AuthorPlanDeps {
-  scrape?: (opts: ScrapeOptions) => Promise<SelectorInventoryItem[]>;
+  scrape?: (opts: ScrapeOptions) => Promise<ScrapeResult>;
   generate?: (opts: GenerateManifestOptions) => Promise<Manifest>;
 }
 
@@ -104,8 +109,11 @@ export async function authorPlan(
   });
 
   let inventory: SelectorInventoryItem[];
+  let finalUrl: string;
   try {
-    inventory = await scrape({ targetUrl: input.target_url, recording });
+    const scraped = await scrape({ targetUrl: input.target_url, recording });
+    inventory = scraped.items;
+    finalUrl = scraped.finalUrl;
   } catch (err) {
     const cause = err instanceof Error ? err.message : String(err);
     throw new AuthorPlanError(`could not inspect ${input.target_url}: ${cause}`);

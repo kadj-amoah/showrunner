@@ -2,6 +2,7 @@
 import type { RecordingConfig } from '../config/schema.js';
 import { SELECTOR_FOR_FN_SOURCE } from '../recording/selectorHeuristic.js';
 import { logger } from '../util/logger.js';
+import type { AuthPlan } from '../recording/auth.js';
 
 const browserMap = { chromium, firefox, webkit } as const;
 
@@ -17,6 +18,11 @@ export interface SelectorInventoryItem {
   href?: string;
 }
 
+export interface ScrapeResult {
+  items: SelectorInventoryItem[];
+  finalUrl: string;
+}
+
 export interface ScrapeOptions {
   targetUrl: string;
   recording: RecordingConfig;
@@ -26,6 +32,10 @@ export interface ScrapeOptions {
   navigationTimeoutMs?: number;
   /** Maximum items returned (truncates from the end). Default 200. */
   maxItems?: number;
+  /** Applied to the explore browser: storageState (session) + postLaunch (form login). */
+  auth?: AuthPlan;
+  /** If set, persist context.storageState() here after a successful scrape. */
+  sessionOutPath?: string;
 }
 
 /**
@@ -38,7 +48,7 @@ export interface ScrapeOptions {
  */
 export async function scrapeSelectorInventory(
   opts: ScrapeOptions,
-): Promise<SelectorInventoryItem[]> {
+): Promise<ScrapeResult> {
   const networkIdleMs = opts.networkIdleTimeoutMs ?? 3000;
   const navigationMs = opts.navigationTimeoutMs ?? 15000;
   const maxItems = opts.maxItems ?? 200;
@@ -50,22 +60,27 @@ export async function scrapeSelectorInventory(
         width: opts.recording.viewport.width,
         height: opts.recording.viewport.height,
       },
+      storageState: opts.auth?.storageState,
     });
     const page = await context.newPage();
     page.setDefaultNavigationTimeout(navigationMs);
+    // Form login (if any) runs FIRST so the subsequent goto(target) lands on the real page.
+    if (opts.auth?.postLaunch) await opts.auth.postLaunch(page);
     await page.goto(opts.targetUrl, { waitUntil: 'load' });
     try {
       await page.waitForLoadState('networkidle', { timeout: networkIdleMs });
     } catch {
       logger.debug('domPreflight: networkidle did not fire within budget â€” proceeding');
     }
+    const finalUrl = page.url();
 
     const items = (await page.evaluate(
       buildScrapeScript(SELECTOR_FOR_FN_SOURCE, maxItems),
     )) as SelectorInventoryItem[];
 
+    if (opts.sessionOutPath) await context.storageState({ path: opts.sessionOutPath });
     await context.close();
-    return items;
+    return { items, finalUrl };
   } finally {
     await browser.close();
   }
