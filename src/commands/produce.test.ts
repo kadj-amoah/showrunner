@@ -142,6 +142,44 @@ describe('produce harness', () => {
     expect(r.reason).toContain('record stage crashed');
   });
 
+  it('threads a session auth from the spec into the recording config the pipeline receives', async () => {
+    // SP-cap-1c: the record browser is a separate pass from author-plan's explore browser.
+    // MAIViS attaches a `session` auth (the storageState it saved) to the produce spec so the
+    // record pass reuses that session and captures the real target, not a login redirect.
+    const out = await freshOut();
+    const auth = { type: 'session', cookies_file: '/sessions/localhost_3000.json' };
+    const specPath = await writeSpec(out, { ...baseSpec, auth });
+    const finalMp4 = join(out, 'output', 'demo_final.mp4');
+
+    let seenConfig: Record<string, unknown> | undefined;
+    const capturingRun = (async (config: Record<string, unknown>) => {
+      seenConfig = config;
+      return fakeRun(finalMp4, { duration: 3 })();
+    }) as never;
+
+    await produceCommand(specPath, { out }, { runPipeline: capturingRun });
+
+    const recording = (seenConfig?.config as Record<string, unknown>).recording as Record<string, unknown>;
+    expect(recording.auth).toEqual(auth);
+  });
+
+  it('leaves the recording auth unset when the spec omits auth', async () => {
+    const out = await freshOut();
+    const specPath = await writeSpec(out, baseSpec); // no auth key
+    const finalMp4 = join(out, 'output', 'demo_final.mp4');
+
+    let seenConfig: Record<string, unknown> | undefined;
+    const capturingRun = (async (config: Record<string, unknown>) => {
+      seenConfig = config;
+      return fakeRun(finalMp4, { duration: 3 })();
+    }) as never;
+
+    await produceCommand(specPath, { out }, { runPipeline: capturingRun });
+
+    const recording = (seenConfig?.config as Record<string, unknown>).recording as Record<string, unknown>;
+    expect(recording.auth).toBeUndefined();
+  });
+
   it('marks failed on an invalid spec without running the pipeline', async () => {
     const out = await freshOut();
     const specPath = await writeSpec(out, { project_name: '' }); // missing required fields
