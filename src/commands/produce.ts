@@ -3,6 +3,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { isAbsolute, join, resolve } from 'node:path';
 import { z } from 'zod';
 import { validateConfig } from '../config/loader.js';
+import { authSchema } from '../config/schema.js';
 import { loadAlignment, wordMarkers, type WordMarker } from '../manifest/alignment.js';
 import { manifestSchema } from '../manifest/schema.js';
 import { run, PipelineStageError } from '../pipeline/run.js';
@@ -29,6 +30,11 @@ const produceSpecSchema = z.object({
   manifest: manifestSchema, // the capture script: segments with vo_line + Playwright actions
   stages: z.array(z.enum(STAGE_NAMES)).default(['voiceover', 'record', 'mux']),
   env_file: z.string().optional(),
+  // Optional auth for the capture browser (form/session/setup_script). MAIViS attaches a
+  // `session` auth here pointing at the storageState its author-plan step saved, so the
+  // record pass reuses the same authenticated session and captures the real target rather
+  // than a login redirect.
+  auth: authSchema.optional(),
 });
 export type ProduceSpec = z.infer<typeof produceSpecSchema>;
 
@@ -138,7 +144,7 @@ export async function produceCommand(
     loaded = validateConfig(
       {
         project: { name: spec.project_name },
-        recording: { target_url: spec.target_url, headless: true },
+        recording: { target_url: spec.target_url, headless: true, ...(spec.auth ? { auth: spec.auth } : {}) },
         voiceover: { provider },
         output: { resolution: spec.resolution, output_path: `./output/${spec.output_name}` },
       },
