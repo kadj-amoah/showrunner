@@ -40,7 +40,7 @@ vi.mock('../scriptGen/generate.js', () => ({
 }));
 
 vi.mock('../scriptGen/domPreflight.js', () => ({
-  scrapeSelectorInventory: vi.fn(async () => []),
+  scrapeSelectorInventory: vi.fn(async () => ({ items: [], finalUrl: 'https://example.com' })),
 }));
 
 async function exists(p: string): Promise<boolean> {
