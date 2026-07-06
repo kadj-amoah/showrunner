@@ -328,9 +328,9 @@ export const voiceoverStage: Stage = {
     const rewritten = rewriteManifestTimings(manifest, artifacts);
     if (rewritten.changed) {
       await writeManifest(manifestPath, rewritten.manifest);
-      stageWarnings.push(
-        `manifest timings derived from VO: total_duration ${manifest.total_duration_seconds.toFixed(2)}s → ${rewritten.manifest.total_duration_seconds.toFixed(2)}s`,
-      );
+      // VO-derived timing is normal operation (VO-Driven Time Contract), not a defect — it must
+      // not warn, or it would flow to `degraded` -> redrive -> escalate. The manifest_rewritten
+      // log event below records the derivation.
       logger.event({
         stage: 'voiceover',
         status: 'manifest_rewritten',
@@ -584,9 +584,9 @@ async function runBestEffortPath(input: BestEffortPathInput): Promise<StageResul
   const rewritten = rewriteManifestTimings(manifest, artifacts);
   if (rewritten.changed) {
     await writeManifest(manifestPath, rewritten.manifest);
-    stageWarnings.push(
-      `manifest timings derived from per-segment VO: total_duration ${manifest.total_duration_seconds.toFixed(2)}s → ${rewritten.manifest.total_duration_seconds.toFixed(2)}s`,
-    );
+    // VO-derived timing is normal operation (VO-Driven Time Contract), not a defect — it must
+    // not warn, or it would flow to `degraded` -> redrive -> escalate. The writeManifest
+    // above records the derivation.
   }
 
   const summaryPath = join(audioDir, 'voiceover_summary.json');
